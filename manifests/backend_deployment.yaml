@@ -1,0 +1,59 @@
+# author: Ole Schuett
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cp2kci-backend-deployment
+spec:
+  selector:
+    matchLabels:
+      app: cp2kci-backend-app
+  template:
+    metadata:
+      labels:
+        app: cp2kci-backend-app
+    spec:
+      terminationGracePeriodSeconds: 1
+      serviceAccountName: cp2kci-backend-account
+      automountServiceAccountToken: True
+      nodeSelector:
+        beta.kubernetes.io/instance-type: n1-standard-1
+      volumes:
+      - name: backend-gcp-key-volume
+        secret:
+          secretName: "backend-gcp-key"
+      - name: github-app-key-volume
+        secret:
+          secretName: "github-app-key"
+      containers:
+      - image: gcr.io/cp2k-org-project/img_cp2kci_backend:latest
+        name: cp2kci-backend-container
+        resources:
+          requests:
+            memory: 250M
+            cpu: 1m # Actually needs more, but kube-dns asked for too much.
+        env:
+        - name: PYTHONUNBUFFERED
+          value: '1'
+        - name: GITHUB_APP_ID
+          value: '16828'
+        - name: GITHUB_APP_INSTALL_ID
+          value: '312256'
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: '/var/secrets/google/key.json'
+        - name: GITHUB_APP_KEY
+          value: '/var/secrets/github-app-key/github-app-key.pem'
+        volumeMounts:
+        - name: backend-gcp-key-volume
+          mountPath: "/var/secrets/google"
+          readOnly: true
+        - name: github-app-key-volume
+          mountPath: "/var/secrets/github-app-key"
+          readOnly: true
+        #livenessProbe:
+        #  periodSeconds: 60
+        #  httpGet:
+        #    port: 5000
+        #    path: /healthz
+
+#EOF

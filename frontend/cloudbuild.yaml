@@ -1,0 +1,29 @@
+# author: Ole Schuett
+
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["build", "-t", "img_cp2kci_frontend", "./frontend/"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["tag", "img_cp2kci_frontend", "gcr.io/$PROJECT_ID/img_cp2kci_frontend:$SHORT_SHA"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["push", "gcr.io/$PROJECT_ID/img_cp2kci_frontend:$SHORT_SHA"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["tag", "img_cp2kci_frontend", "gcr.io/$PROJECT_ID/img_cp2kci_frontend:latest"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["push", "gcr.io/$PROJECT_ID/img_cp2kci_frontend:latest"]
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - beta
+  - compute
+  - instances
+  - update-container
+  - cp2kci-frontend
+  - --zone=us-central1-c
+  - --container-image=gcr.io/$PROJECT_ID/img_cp2kci_frontend:$SHORT_SHA
+
+#EOF

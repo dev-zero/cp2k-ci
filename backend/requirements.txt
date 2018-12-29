@@ -1,0 +1,6 @@
+requests
+kubernetes
+google-cloud-pubsub
+google-cloud-storage
+
+#EOF

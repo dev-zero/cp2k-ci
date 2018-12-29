@@ -1,0 +1,26 @@
+# author: Ole Schuett
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cp2kci-cleanup-cronjob
+spec:
+  schedule: "8 2 * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: True
+          nodeSelector:
+            beta.kubernetes.io/instance-type: n1-standard-1
+          containers:
+          - name: cp2kci-cleanup-cronjob-container
+            resources:
+              requests:
+                cpu: 1m
+            image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
+            command: ["/opt/cp2kci-toolbox/cleanup.sh"]
+
+#EOF

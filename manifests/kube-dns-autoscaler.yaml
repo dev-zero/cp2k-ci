@@ -1,0 +1,12 @@
+# author: Ole Schuett
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-dns-autoscaler
+  namespace: kube-system
+data:
+  # We only need one DNS server: set preventSinglePointFailure=False.
+  linear: '{"coresPerReplica":256,"nodesPerReplica":16,"preventSinglePointFailure":false}'
+
+#EOF
