@@ -326,7 +326,7 @@ def poll_pull_requests(job_list):
                     continue  # Good, check_run is completed.
                 if check_run['url'] in active_check_runs_urls:
                     continue  # Good, there is still an active BatchJob.
-                if gh.age(check_run) < timedelta(minutes=3):
+                if gh.age(check_run['started_at']) < timedelta(minutes=3):
                     continue # It's still young - wait a bit.
 
                 print("Found forgotten check_run: {}".format(check_run['url']))
@@ -336,7 +336,7 @@ def poll_pull_requests(job_list):
                 check_run["output"] = {"title":summary, "summary": ""}
                 gh.patch(check_run['url'], check_run)
 
-            pr_is_old = gh.age(pr) > timedelta(minutes=3)
+            pr_is_old = gh.age(pr['created_at']) > timedelta(minutes=3)
             if pr_is_old and check_run_list['total_count'] == 0:
                 print("Found forgotten PR: {}".format(pr['number']))
                 process_pull_request(gh, pr['number'], pr['user']['login'])

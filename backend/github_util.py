@@ -46,11 +46,9 @@ class GithubUtil:
         return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
     # --------------------------------------------------------------------------
-    def age(self, thing):
-        if 'created_at' not in thing:
-            raise Exception("Can not find created_at in: {}.".format(thing))
+    def age(self, created_at):
         # TODO: Python 3.7 has datetime.fromisoformat().
-        creation = datetime.strptime(thing['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+        creation = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         return datetime.utcnow() - creation
 
     # --------------------------------------------------------------------------
