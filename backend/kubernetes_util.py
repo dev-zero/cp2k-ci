@@ -99,6 +99,7 @@ class KubernetesUtil:
                                       tolerations=[tolerate_costly],
                                       termination_grace_period_seconds=0,
                                       restart_policy="Never",
+                                      dns_policy="Default",  # bypass kube-dns
                                       affinity=self.affinity(target),
                                       automount_service_account_token=False,
                                       priority_class_name=priority)
@@ -166,6 +167,7 @@ class KubernetesUtil:
                                       tolerations=[tolerate_costly],
                                       termination_grace_period_seconds=0,
                                       restart_policy="Never",
+                                      dns_policy="Default",  # bypass kube-dns
                                       affinity=self.affinity(target),
                                       automount_service_account_token=False)
         pod_template = self.api.V1PodTemplateSpec(spec=pod_spec)
