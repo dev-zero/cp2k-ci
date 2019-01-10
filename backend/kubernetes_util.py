@@ -71,6 +71,7 @@ class KubernetesUtil:
 
         # upload wait message
         report_blob = self.output_bucket.blob(report_path)
+        report_blob.cache_control = "no-cache"
         report_blob.upload_from_string("Report not yet available.")
 
         # environment variables
