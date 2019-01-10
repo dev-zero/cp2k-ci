@@ -69,10 +69,11 @@ class KubernetesUtil:
         report_path = job_name + "_report.txt"
         artifacts_path = job_name + "_artifacts.tgz"
 
-        # upload wait message
-        report_blob = self.output_bucket.blob(report_path)
-        report_blob.cache_control = "no-cache"
-        report_blob.upload_from_string("Report not yet available.")
+        # # upload wait message
+        # report_blob = self.output_bucket.blob(report_path)
+        # report_blob.cache_control = "no-cache"
+        # report_blob.upload_from_string("Report not yet available.",
+        #                                content_type="text/plain;charset=utf-8")
 
         # environment variables
         env_vars["REPORT_UPLOAD_URL"] = self.get_upload_url(report_path)
