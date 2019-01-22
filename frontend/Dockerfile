@@ -5,6 +5,7 @@ FROM ubuntu:18.04
 # install Ubuntu packages
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update && apt-get install -y --no-install-recommends \
+    cron \
     certbot \
     apache2 \
     libapache2-mod-wsgi-py3 \

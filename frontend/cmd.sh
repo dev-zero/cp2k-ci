@@ -15,6 +15,9 @@ else
     certbot certonly
 fi
 
+# start cron for cert renewal
+service cron start
+
 # start serving https
 /usr/sbin/a2ensite ci.cp2k.org
 /usr/sbin/apachectl restart
