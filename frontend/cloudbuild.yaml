@@ -18,12 +18,10 @@ steps:
 
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
-  - beta
   - compute
   - instances
-  - update-container
+  - reset
   - cp2kci-frontend
   - --zone=us-central1-c
-  - --container-image=gcr.io/$PROJECT_ID/img_cp2kci_frontend:$SHORT_SHA
 
 #EOF

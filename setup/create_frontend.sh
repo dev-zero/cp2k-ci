@@ -14,23 +14,18 @@ FRONTEND_ACCOUNT="${FRONTEND_ACCOUNT_NAME}@${PROJECT}.iam.gserviceaccount.com"
 
 set -x
 
-gcloud compute disks create ${DISK_NAME} --size="1GB"
+#gcloud compute disks create ${DISK_NAME} --size="1GB"
 
-# --container-mount-disk is still beta
-gcloud beta compute instances create-with-container \
+gcloud compute instances create \
    "cp2kci-frontend" \
    --machine-type="f1-micro" \
-   --container-image="gcr.io/${PROJECT}/img_cp2kci_frontend:latest" \
-   --disk="name=${DISK_NAME}" \
-   --container-mount-disk="name=${DISK_NAME},mount-path=/etc/letsencrypt/" \
-   --tags="http-server,https-server" \
+   --image-project="cos-cloud" \
+   --image-family="cos-stable" \
    --address="35.208.181.14" \
+   --disk="name=${DISK_NAME}" \
+   --tags="http-server,https-server" \
    --service-account="${FRONTEND_ACCOUNT}" \
-   --container-env="GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}"
+   --metadata-from-file="startup-script=../frontend/startup-script.sh" \
+   --metadata="GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET},LETSENCRYPT_STAGING=${LETSENCRYPT_STAGING}"
 
-   #--metadata="google-logging-enabled=false" \
-   #--metadata="google-monitoring-enabled=false"
-
-   #--container-env="LETSENCRYPT_STAGING=1"
-   #--public-ptr-domain="ci.cp2k.org" \
 #EOF
