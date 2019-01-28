@@ -383,19 +383,23 @@ def publish_job_to_github(job):
     gh = GithubUtil(repo)
 
     report_blob = output_bucket.blob(job_annotations["cp2kci/report_path"])
+    artifacts_blob = output_bucket.blob(job_annotations["cp2kci/artifacts_path"])
     check_run = {'status': status, 'output': {}}
     if status == 'completed':
         report = parse_report(report_blob)
         check_run['conclusion'] = 'success' if report['status']=='OK' else 'failure'
         check_run['completed_at'] = gh.now()
         check_run['output']['title'] = report['summary']
-        check_run['output']['summary'] = '[Detailed Report]({})'.format(report_blob.public_url)
+        summary = '[Detailed Report]({})'.format(report_blob.public_url)
+        if artifacts_blob.exists():
+            summary += '\n\n[Artifacts]({})'.format(artifacts_blob.public_url)
     else:
         check_run['output']['title'] = "In Progress..."
-        check_run['output']['summary'] = '[Live Report]({}) (updates every 30s)'.format(report_blob.public_url)
+        summary = '[Live Report]({}) (updates every 30s)'.format(report_blob.public_url)
 
     sender = job_annotations['cp2kci/sender']
-    check_run['output']['summary'] += "\n\nTriggered by @{}.".format(sender)
+    summary += "\n\nTriggered by @{}.".format(sender)
+    check_run['output']['summary'] = summary
 
     # update check_run
     gh.patch(job_annotations['cp2kci/check_run_url'], check_run)
