@@ -29,6 +29,12 @@ def main():
         pr_number = int(sys.argv[3])
         message_backend(rpc=rpc, repo=repo, pr_number=pr_number)
 
+    elif rpc == "submit_check_run":
+        repo = sys.argv[2]
+        pr_number = int(sys.argv[3])
+        target = sys.argv[4]
+        message_backend(rpc=rpc, repo=repo, pr_number=pr_number, target=target)
+
     else:
         print("Unknown command: {}\n".format(rpc))
         print_usage()
@@ -37,7 +43,8 @@ def main():
 def print_usage():
     print("Usage: cp2kcictl.py [ submit_build <target> | submit_all_builds |")
     print("                      submit_dashboard_test <target> | submit_all_dashboard_tests |")
-    print("                      process_pull_request <repo> <pr_number> ]")
+    print("                      process_pull_request <repo> <pr_number> |")
+    print("                      submit_check_run <repo> <pr_number> <target> ]")
     sys.exit(1)
 
 #===================================================================================================
