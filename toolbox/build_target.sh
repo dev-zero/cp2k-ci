@@ -26,15 +26,26 @@ cpuid -1 | grep "(synth)"                 |& tee -a $REPORT
 /opt/cp2kci-toolbox/start_docker.sh       |& tee -a $REPORT
 
 PROJECT=$(gcloud config list --format 'value(core.project)')
+IMAGE_TAG="gcr.io/${PROJECT}/img_${TARGET}:latest"
+REPO_URL="https://github.com/cp2k/${REPO}.git"
+BUILD_DATE=$(date --rfc-3339=seconds --utc)
 
 cd /tmp
-git clone --depth=1 --single-branch -b master https://github.com/cp2k/${REPO}.git |& tee -a $REPORT
+git clone --depth=1 --single-branch -b master ${REPO_URL} |& tee -a $REPORT
 cd ${REPO}$(dirname ${DOCKERFILE})
+GIT_SHA=$(git rev-parse HEAD)
 git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' . |& tee -a $REPORT
 
-IMAGE_TAG=gcr.io/${PROJECT}/img_${TARGET}:latest
-docker build -t ${IMAGE_TAG} -f $(basename ${DOCKERFILE}) "$@" . |& tee -a $REPORT
-docker image push ${IMAGE_TAG}                                   |& tee -a $REPORT
+docker build \
+ --label "org.label-schema.schema-version:1.0" \
+ --label "org.label-schema.name:${TARGET}" \
+ --label "org.label-schema.vendor:CP2K-CI" \
+ --label "org.label-schema.vcs-url:${REPO_URL}" \
+ --label "org.label-schema.vcs-ref:${GIT_SHA}" \
+ --label "org.label-schema.build-date:${BUILD_DATE}" \
+ --tag ${IMAGE_TAG} --file $(basename ${DOCKERFILE}) "$@" . |& tee -a $REPORT
+
+docker image push ${IMAGE_TAG} |& tee -a $REPORT
 
 # Wrap up.
 echo -n "EndDate: "           |& tee -a $REPORT
