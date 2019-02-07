@@ -37,12 +37,12 @@ GIT_SHA=$(git rev-parse HEAD)
 git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' . |& tee -a $REPORT
 
 docker build \
- --label "org.label-schema.schema-version:1.0" \
- --label "org.label-schema.name:${TARGET}" \
- --label "org.label-schema.vendor:CP2K-CI" \
- --label "org.label-schema.vcs-url:${REPO_URL}" \
- --label "org.label-schema.vcs-ref:${GIT_SHA}" \
- --label "org.label-schema.build-date:${BUILD_DATE}" \
+ --label "org.label-schema.schema-version=1.0" \
+ --label "org.label-schema.name=${TARGET}" \
+ --label "org.label-schema.vendor=CP2K-CI" \
+ --label "org.label-schema.vcs-url=${REPO_URL}" \
+ --label "org.label-schema.vcs-ref=${GIT_SHA}" \
+ --label "org.label-schema.build-date=${BUILD_DATE}" \
  --tag ${IMAGE_TAG} --file $(basename ${DOCKERFILE}) "$@" . |& tee -a $REPORT
 
 docker image push ${IMAGE_TAG} |& tee -a $REPORT
