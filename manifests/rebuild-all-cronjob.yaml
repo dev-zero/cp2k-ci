@@ -1,0 +1,37 @@
+# author: Ole Schuett
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cp2kci-rebuild-all-cronjob
+spec:
+  schedule: "0 9,17 *  *  *"
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: False
+          nodeSelector:
+            beta.kubernetes.io/instance-type: n1-standard-1
+          volumes:
+          - name: backend-gcp-key-volume
+            secret:
+              secretName: "backend-gcp-key"
+          containers:
+          - name: cp2kci-rebuild-all-cronjob-container
+            image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
+            command: ["/bin/sh", "-c", "./should_rebuild.py && ./cp2kcictl.py submit_all_builds"]
+            resources:
+              requests:
+                cpu: 1m
+            env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: '/var/secrets/google/key.json'
+            volumeMounts:
+            - name: backend-gcp-key-volume
+              mountPath: "/var/secrets/google"
+              readOnly: true
+
+#EOF
