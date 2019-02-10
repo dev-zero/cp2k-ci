@@ -2,6 +2,7 @@
 
 # author: Ole Schuett
 
+import re
 import sys
 import requests
 from requests.auth import HTTPBasicAuth
@@ -60,7 +61,16 @@ def should_rebuild_everything():
             print("Source files have changed - rebuild everything.")
             sys.exit(0)
 
-    #TODO: test if last dashboard test took too long
+    # check runtime of latest sdbg test
+    url = "https://storage.googleapis.com/cp2k-ci/dashboard_sdbg_report.txt"
+    length = int(requests.head(url).headers['Content-Length'])
+    tail = requests.get(url, headers={"Range":"bytes=%d-"%(length - 500)}).text
+    runtime_sec = float(re.search("Regtest took (.*) seconds.", tail).group(1))
+    max_runtime_sec = 15 * 60
+    if runtime_sec > max_runtime_sec:
+        print("Latest sdbg test run took too long - rebuild everything.")
+        sys.exit(0)
+
     print("Images are ok.")
     sys.exit(1)
 
