@@ -18,7 +18,7 @@ shift 4
 REPORT=/tmp/build_${TARGET}_report.txt
 
 echo -n "StartDate: "                     |& tee -a $REPORT
-date --utc --iso-8601=seconds             |& tee -a $REPORT
+date --utc --rfc-3339=seconds             |& tee -a $REPORT
 
 echo -n "CpuId:"                          |& tee -a $REPORT
 cpuid -1 | grep "(synth)"                 |& tee -a $REPORT
