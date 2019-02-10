@@ -22,7 +22,7 @@ spec:
           containers:
           - name: cp2kci-rebuild-toolchain-cronjob-container
             image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
-            command: ["/bin/sh", "-c", "./should_rebuild.py toolchain && ./cp2kcictl.py submit_build cp2k-toolchain"]
+            command: ["/bin/sh", "-c", "./should_rebuild.py toolchain && ./cp2kcictl.py submit_build cp2k-toolchain || true"]
             resources:
               requests:
                 cpu: 1m
