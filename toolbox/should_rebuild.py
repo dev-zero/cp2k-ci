@@ -8,7 +8,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import google.auth.transport.requests
 import google.auth
-from datetime import datetime
+from datetime import datetime, timedelta
 
 #===============================================================================
 def main():
@@ -66,8 +66,9 @@ def should_rebuild_everything():
     length = int(requests.head(url).headers['Content-Length'])
     tail = requests.get(url, headers={"Range":"bytes=%d-"%(length - 500)}).text
     runtime_sec = float(re.search("Regtest took (.*) seconds.", tail).group(1))
-    max_runtime_sec = 15 * 60
-    if runtime_sec > max_runtime_sec:
+    report_date = parse_date(re.search("EndDate: (.*)", tail).group(1))
+    used_latest_image = report_date - sdbg_build_date > timedelta(hours=4)
+    if used_latest_image and runtime_sec > 15 * 60:
         print("Latest sdbg test run took too long - rebuild everything.")
         sys.exit(0)
 
@@ -98,7 +99,10 @@ def get_image_labels(image):
 
 #===============================================================================
 def get_build_date(labels):
-    date_str = labels['org.label-schema.build-date']
+    return parse_date(labels['org.label-schema.build-date'])
+
+#===============================================================================
+def parse_date(date_str):
     return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S+00:00")
 
 #===============================================================================
