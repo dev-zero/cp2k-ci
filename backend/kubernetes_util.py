@@ -182,7 +182,8 @@ class KubernetesUtil:
                                       backoff_limit=1,
                                       active_deadline_seconds=7200)  # 2 hours
 
-        job_meta = self.api.V1ObjectMeta(name=job_name)
+        job_meta = self.api.V1ObjectMeta(name=job_name,
+                                         labels={'cp2kci': 'build'})
         job = self.api.V1Job(spec=job_spec, metadata=job_meta)
         self.batch_api.create_namespaced_job(self.namespace, body=job)
 
