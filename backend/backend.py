@@ -55,7 +55,7 @@ def main():
 def tick(cycle):
     run_job_list = kubeutil.list_jobs('cp2kci=run')
     if cycle % 30 == 0:  # every 2.5 minutes
-        poll_pull_requests(job_list)
+        poll_pull_requests(run_job_list)
     for job in run_job_list.items:
         if "cp2kci/dashboard" in job.metadata.annotations:
             publish_job_to_dashboard(job)
