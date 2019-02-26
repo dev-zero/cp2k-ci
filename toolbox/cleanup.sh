@@ -10,6 +10,4 @@ for IMAGE in $(gcloud container images list --format="get(name)"); do
    done
 done
 
-./cleanup_build_jobs.py
-
 #EOF

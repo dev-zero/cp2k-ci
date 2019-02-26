@@ -26,9 +26,9 @@ class KubernetesUtil:
         return upload_url
 
     # --------------------------------------------------------------------------
-    def list_jobs(self):
+    def list_jobs(self, selector):
         return self.batch_api.list_namespaced_job(self.namespace,
-                                                  label_selector='cp2kci=run')
+                                                  label_selector=selector)
 
     # --------------------------------------------------------------------------
     def delete_job(self, job_name):

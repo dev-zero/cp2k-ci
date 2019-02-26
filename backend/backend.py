@@ -8,7 +8,7 @@ import json
 import traceback
 import configparser
 from time import sleep
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from github_util import GithubUtil
 from kubernetes_util import KubernetesUtil
@@ -53,16 +53,24 @@ def main():
 
 #===================================================================================================
 def tick(cycle):
-    job_list = kubeutil.list_jobs()
+    run_job_list = kubeutil.list_jobs('cp2kci=run')
     if cycle % 30 == 0:  # every 2.5 minutes
         poll_pull_requests(job_list)
-    for job in job_list.items:
+    for job in run_job_list.items:
         if "cp2kci/dashboard" in job.metadata.annotations:
             publish_job_to_dashboard(job)
         if "cp2kci/check_run_url" in job.metadata.annotations:
             publish_job_to_github(job)
         if job.status.completion_time:
             kubeutil.delete_job(job.metadata.name)
+
+    # remove old build jobs
+    build_job_list = kubeutil.list_jobs('cp2kci=build')
+    for job in build_job_list.items:
+        if job.status.completion_time and not job.status.failed:
+            age = datetime.now(timezone.utc) - job.status.completion_time
+            if age > timedelta(days=1):
+                kubeutil.delete_job(job.metadata.name)
 
 #===================================================================================================
 def process_pubsub_message(message):
