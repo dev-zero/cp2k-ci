@@ -1,4 +1,3 @@
 google-cloud-pubsub
-kubernetes
 
 #EOF
