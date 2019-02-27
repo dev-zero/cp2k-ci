@@ -98,9 +98,6 @@ def process_rpc(rpc, **args):
     elif rpc == 'github_event':
         process_github_event(args['event'], args['body'])
 
-    elif rpc == 'submit_toolchain_build':
-        kubeutil.submit_build("toolchain")
-
     elif rpc == 'submit_all_builds':
         for target in config.sections():
             tags = config.get(target, "tags").split()
