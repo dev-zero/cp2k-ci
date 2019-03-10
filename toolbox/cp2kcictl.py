@@ -52,7 +52,7 @@ def message_backend(**args):
     data = json.dumps(args).encode("utf8")
     future = publish_client.publish(pubsub_topic, data)
     message_id = future.result()
-    print("Send messge {} to topic {}.".format(message_id, pubsub_topic))
+    print("Sent message {} to topic {}.".format(message_id, pubsub_topic))
 
 #===================================================================================================
 if __name__ == "__main__":
