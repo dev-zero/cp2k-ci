@@ -16,6 +16,7 @@ spec:
       terminationGracePeriodSeconds: 1
       serviceAccountName: cp2kci-backend-account
       automountServiceAccountToken: True
+      dnsPolicy: Default
       nodeSelector:
         beta.kubernetes.io/instance-type: n1-standard-1
       volumes:

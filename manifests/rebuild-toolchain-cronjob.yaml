@@ -13,6 +13,7 @@ spec:
         spec:
           restartPolicy: Never
           automountServiceAccountToken: False
+          dnsPolicy: Default
           nodeSelector:
             beta.kubernetes.io/instance-type: n1-standard-1
           volumes:
