@@ -64,13 +64,11 @@ def tick(cycle):
         if job.status.completion_time:
             kubeutil.delete_job(job.metadata.name)
 
-    # remove old build jobs
+    # remove successful build jobs
     build_job_list = kubeutil.list_jobs('cp2kci=build')
     for job in build_job_list.items:
         if job.status.completion_time and not job.status.failed:
-            age = datetime.now(timezone.utc) - job.status.completion_time
-            if age > timedelta(days=1):
-                kubeutil.delete_job(job.metadata.name)
+            kubeutil.delete_job(job.metadata.name)
 
 #===================================================================================================
 def process_pubsub_message(message):
