@@ -1,3 +1,4 @@
+jwt
 requests
 kubernetes
 google-cloud-pubsub
