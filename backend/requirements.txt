@@ -1,4 +1,5 @@
 pyjwt
+cryptography
 requests
 kubernetes
 google-cloud-pubsub
