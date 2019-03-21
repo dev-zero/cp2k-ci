@@ -1,4 +1,4 @@
-jwt
+pyjwt
 requests
 kubernetes
 google-cloud-pubsub
