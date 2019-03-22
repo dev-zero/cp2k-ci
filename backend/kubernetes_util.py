@@ -33,7 +33,8 @@ class KubernetesUtil:
     # --------------------------------------------------------------------------
     def delete_job(self, job_name):
         print("deleting job: " + job_name)
-        self.batch_api.delete_namespaced_job(job_name, self.namespace)
+        self.batch_api.delete_namespaced_job(job_name, self.namespace,
+                                             propagation_policy="Background")
 
     # --------------------------------------------------------------------------
     def patch_job_annotations(self, job_name, new_annotations):
