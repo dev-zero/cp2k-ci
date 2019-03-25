@@ -16,10 +16,14 @@ function get_metadata {
 PROJECT=$(get_metadata "project/project-id")
 GITHUB_WEBHOOK_SECRET=$(get_metadata "instance/attributes/GITHUB_WEBHOOK_SECRET")
 LETSENCRYPT_STAGING=$(get_metadata "instance/attributes/LETSENCRYPT_STAGING")
+IMAGE="gcr.io/${PROJECT}/img_cp2kci_frontend:latest"
 
 # setup docker using a workaround for /root being readonly with cos
 export HOME=/home/chronos/
 docker-credential-gcr configure-docker
+
+# download latest image
+docker pull ${IMAGE}
 
 # launch container
 docker run --init --detach \
@@ -27,6 +31,6 @@ docker run --init --detach \
    --volume "/mnt/disks/letsencrypt:/etc/letsencrypt" \
    --env GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET} \
    --env LETSENCRYPT_STAGING=${LETSENCRYPT_STAGING} \
-   gcr.io/${PROJECT}/img_cp2kci_frontend:latest
+   ${IMAGE}
 
 #EOF
