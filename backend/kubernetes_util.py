@@ -18,6 +18,7 @@ class KubernetesUtil:
         self.api = kubernetes.client
         self.batch_api = kubernetes.client.BatchV1Api()
 
+    # --------------------------------------------------------------------------
     def get_upload_url(self, path, content_type="text/plain;charset=utf-8"):
         expiration = datetime.utcnow() + timedelta(hours=12)
         blob = self.output_bucket.blob(path)
