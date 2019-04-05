@@ -183,7 +183,14 @@ def process_github_event(event, body):
 
 #===================================================================================================
 def process_pull_request(gh, pr_number, sender):
-    pr = gh.get("/pulls/{}".format(pr_number))
+
+    # https://developer.github.com/v3/git/#checking-mergeability-of-pull-requests
+    for i in range(6):
+        pr = gh.get("/pulls/{}".format(pr_number))
+        if pr['mergeable'] is not None:
+            break
+        print("Waiting for mergeability check of PR #{}".format(pr_number))
+        sleep(2**i) # exponential back-off
 
     # check branch
     if pr['base']['ref'] != 'master':
@@ -198,14 +205,21 @@ def process_pull_request(gh, pr_number, sender):
         "completed_at": gh.now(),
     }
     commits = gh.get(pr['commits_url'])
-    if all([len(c['parents'])==1 for c in commits]):
-        check_run['conclusion'] = 'success'
-        check_run['output'] = {"title": "Git history is fine.", "summary": ""}
-    else:
+    if pr['mergeable'] is None:
+        check_run['conclusion'] = 'failure'
+        check_run['output'] = {"title": "Mergeability check timeout.", "summary": ""}
+    elif not pr['mergeable']:
+        check_run['conclusion'] = 'failure'
+        check_run['output'] = {"title": "Branch not mergeable.", "summary": ""}
+    elif any([len(c['parents']) != 1 for c in commits]):
         check_run['conclusion'] = 'failure'
         help_url = "https://github.com/cp2k/cp2k/wiki/CP2K-CI#git-history-contains-merge-commits"
         check_run['output'] = {"title": "Git history contains merge commits.",
-                                     "summary": "[How to fix this?]({})".format(help_url)}
+                               "summary": "[How to fix this?]({})".format(help_url)}
+    else:
+        check_run['conclusion'] = 'success'
+        check_run['output'] = {"title": "Git history is fine.", "summary": ""}
+
     gh.post("/check-runs", check_run)
     if check_run['conclusion'] == 'failure':
         print("Git history test failed - not processing PR further.")
@@ -277,8 +291,8 @@ def submit_check_run(target, gh, pr, sender):
         'cp2kci/check_run_status': 'queued',
     }
     env_vars = {
-        'GIT_BRANCH': "pull/{}/head".format(pr['number']),
-        'GIT_REF': pr['head']['sha'],
+        'GIT_BRANCH': "pull/{}/merge".format(pr['number']),
+        'GIT_REF': pr['merge_commit_sha'],
     }
     kubeutil.submit_run(target, env_vars, job_annotations, "high-priority")
 
