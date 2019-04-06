@@ -455,19 +455,19 @@ def publish_job_to_github(job):
 
 #===================================================================================================
 def parse_report(report_blob):
-    if not report_blob.exists():
-        return( {'status':'UNKNOWN', 'summary': 'Error while retrieving report.', 'git-sha':None} )
+    report = {'status':'UNKNOWN', 'summary': '', 'git-sha':None}
     try:
+        report['summary'] = 'Error while retrieving report.'
         report_txt = report_blob.download_as_string().decode("utf8")
-        report = dict()
-        report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
+
+        report['summary'] = 'Error while parsing report.'
         report['summary'] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
         report['status'] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
-        return(report)
+        report['git-sha'] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(2)
     except:
         print(traceback.format_exc())
-        return( {'status':'UNKNOWN', 'summary':'Error while parsing report.', 'git-sha':None} )
 
+    return(report)
 #===================================================================================================
 if __name__ == "__main__":
     main()
