@@ -182,15 +182,39 @@ def process_github_event(event, body):
         pass # Unhandled github even - there are many of these.
 
 #===================================================================================================
-def process_pull_request(gh, pr_number, sender):
-
+def await_mergeability(gh, pr, check_run_name):
     # https://developer.github.com/v3/git/#checking-mergeability-of-pull-requests
-    for i in range(6):
-        pr = gh.get("/pulls/{}".format(pr_number))
+
+    if pr['mergeable'] is not None:
+        return
+
+    # This might take a while, tell the user and disable resubmit buttons.
+    check_run = {
+        "name": check_run_name,
+        "head_sha": pr['head']['sha'],
+        "started_at": gh.now(),
+        "output": {"title": "Waiting for mergeability check", "summary": ""}
+    }
+    gh.post("/check-runs", check_run)
+
+    for i in range(10):
+        print("Waiting for mergeability check of PR {}".format(pr['number']))
+        sleep(5)
+        pr.clear()
+        pr.update(gh.get("/pulls/{}".format(pr['number'])))
         if pr['mergeable'] is not None:
-            break
-        print("Waiting for mergeability check of PR #{}".format(pr_number))
-        sleep(2**i) # exponential back-off
+            return
+
+    # timeout
+    check_run['completed_at']: gh.now()
+    check_run['conclusion'] = 'failure'
+    check_run['output'] = {"title": "Mergeability check timeout.", "summary": ""}
+    gh.post("/check-runs", check_run)
+    raise Exception("Mergeability check timeout on PR {}".format(pr['number']))
+
+#===================================================================================================
+def process_pull_request(gh, pr_number, sender):
+    pr = gh.get("/pulls/{}".format(pr_number))
 
     # check branch
     if pr['base']['ref'] != 'master':
@@ -204,11 +228,11 @@ def process_pull_request(gh, pr_number, sender):
         "started_at": gh.now(),
         "completed_at": gh.now(),
     }
+
     commits = gh.get(pr['commits_url'])
-    if pr['mergeable'] is None:
-        check_run['conclusion'] = 'failure'
-        check_run['output'] = {"title": "Mergeability check timeout.", "summary": ""}
-    elif not pr['mergeable']:
+    await_mergeability(gh, pr,  check_run['name'])
+
+    if not pr['mergeable']:
         check_run['conclusion'] = 'failure'
         check_run['output'] = {"title": "Branch not mergeable.", "summary": ""}
     elif any([len(c['parents']) != 1 for c in commits]):
@@ -280,6 +304,8 @@ def submit_check_run(target, gh, pr, sender):
             check_run["conclusion"] = "success"
             gh.post("/check-runs", check_run)
             return
+
+    await_mergeability(gh, pr,  check_run['name'])
 
     # related files were modified, let's submit job.
     check_run = gh.post("/check-runs", check_run)
