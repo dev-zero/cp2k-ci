@@ -197,11 +197,12 @@ def await_mergeability(gh, pr, check_run_name):
     }
     gh.post("/check-runs", check_run)
 
+    pr_number = pr['number']
     for i in range(10):
-        print("Waiting for mergeability check of PR {}".format(pr['number']))
+        print("Waiting for mergeability check of PR {}".format(pr_number))
         sleep(5)
         pr.clear()
-        pr.update(gh.get("/pulls/{}".format(pr['number'])))
+        pr.update(gh.get("/pulls/{}".format(pr_number)))
         if pr['mergeable'] is not None:
             return
 
@@ -210,7 +211,7 @@ def await_mergeability(gh, pr, check_run_name):
     check_run['conclusion'] = 'failure'
     check_run['output'] = {"title": "Mergeability check timeout.", "summary": ""}
     gh.post("/check-runs", check_run)
-    raise Exception("Mergeability check timeout on PR {}".format(pr['number']))
+    raise Exception("Mergeability check timeout on PR {}".format(pr_number))
 
 #===================================================================================================
 def process_pull_request(gh, pr_number, sender):
