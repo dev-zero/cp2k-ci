@@ -225,6 +225,7 @@ def process_pull_request(gh, pr_number, sender):
     # check git history
     check_run = {
         "name": "Git History",
+        "external_id": format_external_id(pr['number'], "git-history"),
         "head_sha": pr['head']['sha'],
         "started_at": gh.now(),
         "completed_at": gh.now(),
