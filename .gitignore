@@ -1,5 +1,7 @@
 *.pem
+*.pyc
 key.json
 *~
+__pycache__
 \#*\#
 
