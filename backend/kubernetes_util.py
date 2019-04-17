@@ -75,7 +75,8 @@ class KubernetesUtil:
 
         # pod
         tolerate_costly = self.api.V1Toleration(key="costly", operator="Exists")
-        pod_spec = self.api.V1PodSpec(tolerations=[tolerate_costly],
+        pod_spec = self.api.V1PodSpec(init_containers=[], containers=[],
+                                      tolerations=[tolerate_costly],
                                       termination_grace_period_seconds=0,
                                       restart_policy="Never",
                                       dns_policy="Default",  # bypass kube-dns
@@ -90,7 +91,7 @@ class KubernetesUtil:
                                       active_deadline_seconds=7200)  # 2 hours
         job = self.api.V1Job(spec=job_spec, metadata=job_metadata)
 
-        self.add_main_container(job, target, git_branch, git_ref)
+        self.add_run_container(job, target, git_branch, git_ref)
 
         return job
 
