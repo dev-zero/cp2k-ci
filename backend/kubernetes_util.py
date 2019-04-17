@@ -62,6 +62,73 @@ class KubernetesUtil:
         return self.api.V1Affinity(node_affinity=node_affinity)
 
     # --------------------------------------------------------------------------
+    def submit_run_new(self, target, git_branch, git_ref, job_annotations, priority=None):
+
+        print("NEW: Submitting run for target: {}.".format(target))
+
+        # metadata
+        job_name = "run-" + target + "-" + str(uuid4())[:8]
+        job_annotations['cp2kci/target'] = target
+        job_metadata = self.api.V1ObjectMeta(name=job_name,
+                                             labels={'cp2kci': 'run'},
+                                             annotations=job_annotations)
+
+        # pod
+        tolerate_costly = self.api.V1Toleration(key="costly", operator="Exists")
+        pod_spec = self.api.V1PodSpec(tolerations=[tolerate_costly],
+                                      termination_grace_period_seconds=0,
+                                      restart_policy="Never",
+                                      dns_policy="Default",  # bypass kube-dns
+                                      affinity=self.affinity(target),
+                                      automount_service_account_token=False,
+                                      priority_class_name=priority)
+        pod_template = self.api.V1PodTemplateSpec(spec=pod_spec)
+
+        # job
+        job_spec = self.api.V1JobSpec(template=pod_template,
+                                      backoff_limit=6,
+                                      active_deadline_seconds=7200)  # 2 hours
+        job = self.api.V1Job(spec=job_spec, metadata=job_metadata)
+
+        self.add_main_container(job, target, git_branch, git_ref)
+
+        return job
+
+    # --------------------------------------------------------------------------
+    def add_run_container(self, job, target, git_branch, git_ref):
+        report_path = job.metadata.name + "_report.txt"
+        artifacts_path = job.metadata.name + "_artifacts.tgz"
+        job.metadata.annotations['cp2kci/report_path'] = report_path
+        job.metadata.annotations['cp2kci/artifacts_path'] = artifacts_path
+
+        # upload wait message
+        report_blob = self.output_bucket.blob(report_path)
+        report_blob.cache_control = "no-cache"
+        report_blob.upload_from_string("Report not yet available.")
+
+        # environment variables
+        env_vars = {}
+        env_vars["GIT_BRANCH"] = git_branch
+        env_vars["GIT_REF"] = git_ref
+        env_vars["REPORT_UPLOAD_URL"] = self.get_upload_url(report_path)
+        env_vars["ARTIFACTS_UPLOAD_URL"] = \
+            self.get_upload_url(artifacts_path, content_type="application/gzip")
+        k8s_env_vars = [self.api.V1EnvVar(k, v) for k, v in env_vars.items()]
+
+        # container with SYS_PTRACE as needed by LeakSanitizer.
+        caps = self.api.V1Capabilities(add=["SYS_PTRACE"])
+        security = self.api.V1SecurityContext(capabilities=caps)
+        image = self.image_base + "/img_{}:latest".format(target)
+        container = self.api.V1Container(name="main",
+                                         image=image,
+                                         resources=self.resources(target),
+                                         security_context=security,
+                                         env=k8s_env_vars)
+
+        job.spec.template.spec.containers.append(container)
+
+
+    # --------------------------------------------------------------------------
     def submit_run(self, target, env_vars, job_annotations, priority=None):
         print("Submitting run for target: {}.".format(target))
 

@@ -322,7 +322,14 @@ def submit_check_run(target, gh, pr, sender):
         'GIT_BRANCH': "pull/{}/merge".format(pr['number']),
         'GIT_REF': pr['merge_commit_sha'],
     }
-    kubeutil.submit_run(target, env_vars, job_annotations, "high-priority")
+    if sender=="oschuett":
+        kubeutil.submit_run_new(target,
+            git_branch=env_vars['GIT_BRANCH'],
+            git_ref=env_vars['GIT_REF'],
+            job_annotations=job_annotations,
+            priority="high-priority")
+    else:
+        kubeutil.submit_run(target, env_vars, job_annotations, "high-priority")
 
 #===================================================================================================
 def submit_dashboard_test(target, head_sha, force=False):
