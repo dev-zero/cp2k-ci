@@ -18,7 +18,7 @@ class GithubUtil:
         self.repo = repo
         #self.token = self.get_installation_token()  # TODO make this lazy
         self.repo_url = "https://api.github.com/repos/cp2k/" + repo
-        self.tree_cache = {}
+        self.cache = {}
 
     # --------------------------------------------------------------------------
     def get_master_head_sha(self):
@@ -91,23 +91,62 @@ class GithubUtil:
 
 
     # --------------------------------------------------------------------------
-    def get_subtree_sha(self, tree_entry, path):
-        path_parts = path.split("/")
-        if not path_parts:
-            return tree_entry['sha']
-        tree = gh.get(tree_entry['url'])
-        for entry in tree['tree']:
-            if entry['path'] == path_parts[0]:
-                return self.get_subtree_sha(entry, "/".join(path_parts[1:]))
-        raise Exception("Could not find {} in tree {}".format(path_parts[0], tree_entry['url']))
+    def get_tree_sha(self, commit_sha, path):
+        cache_key = "tree:{}:{}".format(commit_sha, path)
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        
+        commit = self.get("/commits/"+commit_sha)
+        current_tree_sha = commit['commit']['tree']['sha']
 
+        assert path.startswith("/") and path.endswith("/")
+        for directory in path.split("/")[1:-1]:
+            tree = self.get("/git/trees/"+current_tree_sha)
+            matches = [e['sha'] for e in tree['tree'] if e['path'] == directory]
+            if len(matches) != 1:
+                raise Exception("Could not find directory {} in tree {}".format(directory, current_tree_sha))
+            current_tree_sha = matches[0]
 
+        self.cache[cache_key] = current_tree_sha
+        return current_tree_sha
+      
+      
+from requests.auth import HTTPBasicAuth
+import google.auth.transport.requests
+import google.auth
+
+# --------------------------------------------------------------------------
+def image_label_exists(image, label):
+    cache_key = image + ":" + label
+    if cache_key in image_label_cache:
+        return True
+
+    # https://hackernoon.com/inspecting-docker-images-without-pulling-them-4de53d34a604
+    # https://cloud.google.com/container-registry/docs/advanced-authentication
+    scopes = ["https://www.googleapis.com/auth/devstorage.read_only"]
+    credentials, project = google.auth.default(scopes=scopes)
+    auth_request = google.auth.transport.requests.Request()
+    credentials.refresh(auth_request)
+    auth = HTTPBasicAuth('_token', credentials.token)
+    headers = {"Accept": "application/vnd.docker.distribution.manifest.v2+json"}
+    url = "https://gcr.io/v2/" + project + "/" + image + "/tags/list"
+    r = requests.get(url, headers=headers, auth=auth)
+    r.raise_for_status()    
+    for tag in r.json()['tags']:
+        existing_images.add(image + ":" + tag)
+        
+    return cache_key in image_label_cache
+    
 def main():
+    image_exists("img_cp2k-coverage-pdbg", "asdf")
+    return
     print("hello")
     gh = GithubUtil("cp2k")
-    sha = "760d482e266ee6cf23aa553ef04dc27b1c3cf3b2"
-    commit = gh.get("/commits/"+sha)
-    subtree = get_subtree_sha(gh, commit['commit']['tree'], "tools/docker/")
-    pprint(subtree)
+    commit_sha = "760d482e266ee6cf23aa553ef04dc27b1c3cf3b2"
+    tree_sha = gh.get_tree_sha(commit_sha, "/tools/docker/")
+    print(tree_sha)
+    #print("/".split("/"))
+    #subtree = get_subtree_sha(gh, commit['commit']['tree'], "tools/docker/")
+    #pprint(subtree)
 main()
 # EOF
