@@ -93,7 +93,8 @@ class KubernetesUtil:
 
         self.add_run_container(job, target, git_branch, git_ref)
 
-        return job
+        self.batch_api.create_namespaced_job(self.namespace, body=job)
+
 
     # --------------------------------------------------------------------------
     def add_run_container(self, job, target, git_branch, git_ref):
