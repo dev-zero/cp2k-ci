@@ -47,6 +47,9 @@ RUN wget -O gcloud.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg && 
     apt-get install -y google-cloud-sdk && \
     rm -rf /var/lib/apt/lists/*
 
+# clone repos
+RUN git clone --recursive --depth=1 --single-branch -b master https://github.com/cp2k/cp2k.git /workspace/cp2k
+
 WORKDIR /opt/cp2kci-toolbox
 COPY *.sh *.py /opt/cp2kci-toolbox/
 

@@ -17,10 +17,10 @@ def main():
         print_usage()
 
     rpc = sys.argv[1]
-    if rpc in ("submit_all_builds", "submit_all_dashboard_tests"):
+    if rpc == "submit_all_dashboard_tests":
         message_backend(rpc=rpc)
 
-    elif rpc in ("submit_build", "submit_dashboard_test"):
+    elif rpc == "submit_dashboard_test":
         target = sys.argv[2]
         message_backend(rpc=rpc, target=target)
 
@@ -41,10 +41,10 @@ def main():
 
 #===================================================================================================
 def print_usage():
-    print("Usage: cp2kcictl.py [ submit_build <target> | submit_all_builds |")
-    print("                      submit_dashboard_test <target> | submit_all_dashboard_tests |")
+    print("Usage: cp2kcictl.py [ submit_check_run <repo> <pr_number> <target> |")
     print("                      process_pull_request <repo> <pr_number> |")
-    print("                      submit_check_run <repo> <pr_number> <target> ]")
+    print("                      submit_dashboard_test <target> |")
+    print("                      submit_all_dashboard_tests ]")
     sys.exit(1)
 
 #===================================================================================================

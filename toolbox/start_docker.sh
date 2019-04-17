@@ -4,9 +4,8 @@
 
 /usr/bin/dockerd -H unix:// &> /var/log/dockerd.log &
 sleep 1  # wait a bit for docker deamon
-docker version
 
-if [[ "$?" != "0" ]]; then
+if ! docker version ; then
     cat /var/log/docker.log
     echo "Docker does not work, not running with --privileged?"
     exit 1

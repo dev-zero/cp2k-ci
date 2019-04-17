@@ -22,7 +22,7 @@ storage_client = google.cloud.storage.Client(project=gcp_project)
 subscriber_client = google.cloud.pubsub.SubscriberClient()
 output_bucket = storage_client.get_bucket("cp2k-ci")
 
-KNOWN_TAGS = ("required_check_run", "optional_check_run", "dashboard", "exclude_build_all")
+KNOWN_TAGS = ("required_check_run", "optional_check_run", "dashboard")
 config = configparser.ConfigParser()
 config.read("./cp2k-ci.conf")
 
@@ -64,12 +64,6 @@ def tick(cycle):
         if job.status.completion_time:
             kubeutil.delete_job(job.metadata.name)
 
-    # remove successful build jobs
-    build_job_list = kubeutil.list_jobs('cp2kci=build')
-    for job in build_job_list.items:
-        if job.status.completion_time and not job.status.failed:
-            kubeutil.delete_job(job.metadata.name)
-
 #===================================================================================================
 def process_pubsub_message(message):
     try:
@@ -95,16 +89,6 @@ def process_rpc(rpc, **args):
 
     elif rpc == 'github_event':
         process_github_event(args['event'], args['body'])
-
-    elif rpc == 'submit_all_builds':
-        for target in config.sections():
-            tags = config.get(target, "tags").split()
-            if "exclude_build_all" not in tags:
-                kubeutil.submit_build(target)
-
-    elif rpc == 'submit_build':
-        target = args['target']
-        kubeutil.submit_build(target)
 
     elif rpc == 'submit_all_dashboard_tests':
         head_sha = GithubUtil("cp2k").get_master_head_sha()
@@ -318,11 +302,7 @@ def submit_check_run(target, gh, pr, sender):
         'cp2kci/check_run_html_url': check_run['html_url'],
         'cp2kci/check_run_status': 'queued',
     }
-    env_vars = {
-        'GIT_BRANCH': "pull/{}/merge".format(pr['number']),
-        'GIT_REF': pr['merge_commit_sha'],
-    }
-    kubeutil.submit_run(target, env_vars, job_annotations, "high-priority")
+    kubeutil.submit_run(target, pr['merge_commit_sha'], job_annotations, "high-priority")
 
 #===================================================================================================
 def submit_dashboard_test(target, head_sha, force=False):
@@ -342,8 +322,7 @@ def submit_dashboard_test(target, head_sha, force=False):
 
     if latest_report_sha != head_sha or force:
         job_annotations = {'cp2kci/dashboard': 'yes'}
-        env_vars = {'GIT_BRANCH': "master", 'GIT_REF': head_sha}
-        kubeutil.submit_run(target, env_vars, job_annotations)
+        kubeutil.submit_run(target, head_sha, job_annotations)
 
 #===================================================================================================
 def poll_pull_requests(job_list):
