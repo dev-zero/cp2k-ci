@@ -2,8 +2,12 @@
 
 import kubernetes
 from uuid import uuid4
+from os import path
 from datetime import datetime, timedelta
 
+from requests.auth import HTTPBasicAuth
+import google.auth.transport.requests
+import google.auth
 
 class KubernetesUtil:
     def __init__(self, config, output_bucket, image_base, namespace="default"):
@@ -17,6 +21,7 @@ class KubernetesUtil:
         self.namespace = namespace
         self.api = kubernetes.client
         self.batch_api = kubernetes.client.BatchV1Api()
+        self.image_cache = {}
 
     # --------------------------------------------------------------------------
     def get_upload_url(self, path, content_type="text/plain;charset=utf-8"):
@@ -93,14 +98,84 @@ class KubernetesUtil:
                                       active_deadline_seconds=7200)  # 2 hours
         job = self.api.V1Job(spec=job_spec, metadata=job_metadata)
 
-        image = self.add_build_container(job, target, git_branch, git_ref)
+        image = self.add_build_container(job, target, git_ref)
         self.add_run_container(job, target, git_branch, git_ref, image)
 
         self.batch_api.create_namespaced_job(self.namespace, body=job)
 
 
     # --------------------------------------------------------------------------
+    def add_build_container(self, job, target, commit_sha):
+
+        dockerfile = self.config.get(target, "dockerfile")
+        dockerdir = path.dirname(dockerfile)
+        docker_tree_sha = gh.get_tree_sha(commit_sha, dockerdir)
+        cache_key = docker_tree_sha  #TODO: add build-args
+        run_image = self.image_base + "img_{}:{}".format(target, cache_key)
+
+        if image_exists(run_image):
+            return run_image
+
+        # upload wait message
+        buildlog_url = self.get_upload_url(job.metadata.name + "_buildlog.txt")
+        buildlog_blob = self.output_bucket.blob(report_path)
+        buildlog_blob.cache_control = "no-cache"
+        buildlog_blob.upload_from_string("Build log not yet available.")
+
+        repo = self.config.get(target, "repository")
+        command = ["./build_target_new.sh", repo, commit_sha, dockerfile, run_image, buildlog_url]
+
+        # build-args
+        if self.config.has_option(target, "build_args"):
+            for arg in self.config.get(target, "build_args").split():
+                command.append("--build-arg")
+                command.append(arg.replace("${IMAGE_BASE}", self.image_base))
+
+        # make sure image gets push to run_image
+
+        # docker volume (needed for performance)
+        docker_source = self.api.V1EmptyDirVolumeSource()
+        docker_volname = "volume-" + job_name
+        docker_volume = self.api.V1Volume(name=docker_volname,
+                                          empty_dir=docker_source)
+        docker_mount = self.api.V1VolumeMount(mount_path="/var/lib/docker/",
+                                              name=docker_volname)
+
+        # secret stuff
+        secret_name = "backend-gcp-key"
+        secret_source = self.api.V1SecretVolumeSource(secret_name=secret_name)
+        secret_volume = self.api.V1Volume(name="backend-gcp-key-volume",
+                                          secret=secret_source)
+        secret_mount = self.api.V1VolumeMount(name="backend-gcp-key-volume",
+                                              mount_path="/var/secrets/google",
+                                              read_only=True)
+        secret_env = self.api.V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS",
+                                       value="/var/secrets/google/key.json")
+
+        # container with privileged=True as needed by docker build
+        privileged = self.api.V1SecurityContext(privileged=True)
+        toolbox_image = self.image_base + "img_cp2kci_toolbox:latest"
+        container = self.api.V1Container(name="build",
+                                         image=toolbox_image,
+                                         resources=self.resources(target),
+                                         command=command,
+                                         volume_mounts=[docker_mount,
+                                                        secret_mount],
+                                         security_context=privileged,
+                                         env=[secret_env])
+
+        # add to job
+        job.metadata.annotations['cp2kci/buildlog_path'] = buildlog_path
+        job.spec.template.spec.volumes.append(docker_mount)
+        job.spec.template.spec.volumes.append(secret_mount)
+        job.spec.template.spec.init_containers.append(container)
+
+        return run_image
+
+
+    # --------------------------------------------------------------------------
     def add_run_container(self, job, target, git_branch, git_ref, image):
+        #TODO: Do we really need git_branch? Couldn't we just fetch the commit_sha?
         report_path = job.metadata.name + "_report.txt"
         artifacts_path = job.metadata.name + "_artifacts.tgz"
 
@@ -134,54 +209,30 @@ class KubernetesUtil:
 
 
     # --------------------------------------------------------------------------
-    def add_build_container(self, job, target, git_branch, git_ref):
-        report_url = self.get_upload_url(job.metadata.name + "_report.txt")
-        repo = self.config.get(target, "repository")
-        dockerfile = self.config.get(target, "dockerfile")
-        command = ["./build_target.sh", target, repo, dockerfile, report_url]
+    def image_label_exists(self, image):
+        #TODO: maybe move into a new gcr_util.py
+        if image in self.image_cache:
+            return True
 
-        # build-args
-        if self.config.has_option(target, "build_args"):
-            for arg in self.config.get(target, "build_args").split():
-                command.append("--build-arg")
-                command.append(arg.replace("${IMAGE_BASE}", self.image_base))
+        # https://hackernoon.com/inspecting-docker-images-without-pulling-them-4de53d34a604
+        # https://cloud.google.com/container-registry/docs/advanced-authentication
+        scopes = ["https://www.googleapis.com/auth/devstorage.read_only"]
+        credentials, project = google.auth.default(scopes=scopes)
+        auth_request = google.auth.transport.requests.Request()
+        credentials.refresh(auth_request)
+        auth = HTTPBasicAuth('_token', credentials.token)
+        headers = {"Accept": "application/vnd.docker.distribution.manifest.v2+json"}
 
-        # docker volume (needed for performance)
-        docker_source = self.api.V1EmptyDirVolumeSource()
-        docker_volname = "volume-" + job_name
-        docker_volume = self.api.V1Volume(name=docker_volname,
-                                          empty_dir=docker_source)
-        docker_mount = self.api.V1VolumeMount(mount_path="/var/lib/docker/",
-                                              name=docker_volname)
+        assert image.startswith("gcr.io")
+        image_without_tag = image.rsplit(":", 1)[0]
+        image_name = image_without_tag[6:]  # strip off gcr.io
+        url = "https://gcr.io/v2/" + image_basename + "/tags/list"
+        r = requests.get(url, headers=headers, auth=auth)
+        r.raise_for_status()
+        for tag in r.json()['tags']:
+            self.image_cache.add(image_without_tag + ":" + tag)
 
-        # secret stuff
-        secret_name = "backend-gcp-key"
-        secret_source = self.api.V1SecretVolumeSource(secret_name=secret_name)
-        secret_volume = self.api.V1Volume(name="backend-gcp-key-volume",
-                                          secret=secret_source)
-        secret_mount = self.api.V1VolumeMount(name="backend-gcp-key-volume",
-                                              mount_path="/var/secrets/google",
-                                              read_only=True)
-        secret_env = self.api.V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS",
-                                       value="/var/secrets/google/key.json")
-
-        # container with privileged=True as needed by docker build
-        privileged = self.api.V1SecurityContext(privileged=True)
-        image = self.image_base + "/img_cp2kci_toolbox:latest"
-        container = self.api.V1Container(name="build",
-                                         image=image,
-                                         resources=self.resources(target),
-                                         command=command,
-                                         volume_mounts=[docker_mount,
-                                                        secret_mount],
-                                         security_context=privileged,
-                                         env=[secret_env])
-
-        # add to job
-        job.spec.template.spec.volumes.append(docker_mount)
-        job.spec.template.spec.volumes.append(secret_mount)
-        job.spec.template.spec.init_containers.append(container)
-
+        return image in self.image_cache
 
     # --------------------------------------------------------------------------
     def submit_run(self, target, env_vars, job_annotations, priority=None):
@@ -213,7 +264,7 @@ class KubernetesUtil:
         # container with SYS_PTRACE as needed by LeakSanitizer.
         caps = self.api.V1Capabilities(add=["SYS_PTRACE"])
         security = self.api.V1SecurityContext(capabilities=caps)
-        image = self.image_base + "/img_{}:latest".format(target)
+        image = self.image_base + "img_{}:latest".format(target)
         container = self.api.V1Container(name="main",
                                          image=image,
                                          resources=self.resources(target),
@@ -277,7 +328,7 @@ class KubernetesUtil:
 
         # container with privileged=True as needed by docker build
         privileged = self.api.V1SecurityContext(privileged=True)
-        image = self.image_base + "/img_cp2kci_toolbox:latest"
+        image = self.image_base + "img_cp2kci_toolbox:latest"
         container = self.api.V1Container(name="main",
                                          image=image,
                                          resources=self.resources(target),

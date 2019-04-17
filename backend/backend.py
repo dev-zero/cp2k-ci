@@ -27,7 +27,7 @@ config = configparser.ConfigParser()
 config.read("./cp2k-ci.conf")
 
 kubeutil = KubernetesUtil(config=config, output_bucket=output_bucket,
-                          image_base="gcr.io/" + gcp_project)
+                          image_base="gcr.io/{}/".format(gcp_project))
 
 
 #===================================================================================================

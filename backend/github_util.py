@@ -17,11 +17,33 @@ class GithubUtil:
         self.repo = repo
         self.token = self.get_installation_token()  # TODO make this lazy
         self.repo_url = "https://api.github.com/repos/cp2k/" + repo
+        self.tree_cache = {}
 
     # --------------------------------------------------------------------------
     def get_master_head_sha(self):
         # Get sha of latest git commit.
         return self.get("/commits")[0]['sha']
+
+    # --------------------------------------------------------------------------
+    def get_tree_sha(self, commit_sha, tree_path):
+        # Get sha of tree for given path and commit.
+        cache_key = "{}:{}".format(commit_sha, tree_path)
+        if cache_key in self.tree_cache:
+            return self.tree_cache[cache_key]
+
+        assert tree_path.startswith("/") and tree_path.endswith("/")
+        commit = self.get("/commits/"+commit_sha)
+        current_tree_sha = commit['commit']['tree']['sha']
+
+        for directory in tree_path.split("/")[1:-1]:
+            tree = self.get("/git/trees/"+current_tree_sha)
+            matches = [e['sha'] for e in tree['tree'] if e['path'] == directory]
+            if len(matches) != 1:
+                raise Exception("Could not find directory {} in tree {}".format(directory, current_tree_sha))
+            current_tree_sha = matches[0]
+
+        self.tree_cache[cache_key] = current_tree_sha
+        return current_tree_sha
 
     # --------------------------------------------------------------------------
     def get_installation_token(self):
