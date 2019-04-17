@@ -75,7 +75,9 @@ class KubernetesUtil:
 
         # pod
         tolerate_costly = self.api.V1Toleration(key="costly", operator="Exists")
-        pod_spec = self.api.V1PodSpec(init_containers=[], containers=[],
+        pod_spec = self.api.V1PodSpec(init_containers=[],
+                                      containers=[],
+                                      volumes=[],
                                       tolerations=[tolerate_costly],
                                       termination_grace_period_seconds=0,
                                       restart_policy="Never",
@@ -91,17 +93,16 @@ class KubernetesUtil:
                                       active_deadline_seconds=7200)  # 2 hours
         job = self.api.V1Job(spec=job_spec, metadata=job_metadata)
 
-        self.add_run_container(job, target, git_branch, git_ref)
+        image = self.add_build_container(job, target, git_branch, git_ref)
+        self.add_run_container(job, target, git_branch, git_ref, image)
 
         self.batch_api.create_namespaced_job(self.namespace, body=job)
 
 
     # --------------------------------------------------------------------------
-    def add_run_container(self, job, target, git_branch, git_ref):
+    def add_run_container(self, job, target, git_branch, git_ref, image):
         report_path = job.metadata.name + "_report.txt"
         artifacts_path = job.metadata.name + "_artifacts.tgz"
-        job.metadata.annotations['cp2kci/report_path'] = report_path
-        job.metadata.annotations['cp2kci/artifacts_path'] = artifacts_path
 
         # upload wait message
         report_blob = self.output_bucket.blob(report_path)
@@ -120,14 +121,66 @@ class KubernetesUtil:
         # container with SYS_PTRACE as needed by LeakSanitizer.
         caps = self.api.V1Capabilities(add=["SYS_PTRACE"])
         security = self.api.V1SecurityContext(capabilities=caps)
-        image = self.image_base + "/img_{}:latest".format(target)
-        container = self.api.V1Container(name="main",
+        container = self.api.V1Container(name="run",
                                          image=image,
                                          resources=self.resources(target),
                                          security_context=security,
                                          env=k8s_env_vars)
 
+        # add to job
+        job.metadata.annotations['cp2kci/report_path'] = report_path
+        job.metadata.annotations['cp2kci/artifacts_path'] = artifacts_path
         job.spec.template.spec.containers.append(container)
+
+
+    # --------------------------------------------------------------------------
+    def add_build_container(self, job, target, git_branch, git_ref):
+        report_url = self.get_upload_url(job.metadata.name + "_report.txt")
+        repo = self.config.get(target, "repository")
+        dockerfile = self.config.get(target, "dockerfile")
+        command = ["./build_target.sh", target, repo, dockerfile, report_url]
+
+        # build-args
+        if self.config.has_option(target, "build_args"):
+            for arg in self.config.get(target, "build_args").split():
+                command.append("--build-arg")
+                command.append(arg.replace("${IMAGE_BASE}", self.image_base))
+
+        # docker volume (needed for performance)
+        docker_source = self.api.V1EmptyDirVolumeSource()
+        docker_volname = "volume-" + job_name
+        docker_volume = self.api.V1Volume(name=docker_volname,
+                                          empty_dir=docker_source)
+        docker_mount = self.api.V1VolumeMount(mount_path="/var/lib/docker/",
+                                              name=docker_volname)
+
+        # secret stuff
+        secret_name = "backend-gcp-key"
+        secret_source = self.api.V1SecretVolumeSource(secret_name=secret_name)
+        secret_volume = self.api.V1Volume(name="backend-gcp-key-volume",
+                                          secret=secret_source)
+        secret_mount = self.api.V1VolumeMount(name="backend-gcp-key-volume",
+                                              mount_path="/var/secrets/google",
+                                              read_only=True)
+        secret_env = self.api.V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS",
+                                       value="/var/secrets/google/key.json")
+
+        # container with privileged=True as needed by docker build
+        privileged = self.api.V1SecurityContext(privileged=True)
+        image = self.image_base + "/img_cp2kci_toolbox:latest"
+        container = self.api.V1Container(name="build",
+                                         image=image,
+                                         resources=self.resources(target),
+                                         command=command,
+                                         volume_mounts=[docker_mount,
+                                                        secret_mount],
+                                         security_context=privileged,
+                                         env=[secret_env])
+
+        # add to job
+        job.spec.template.spec.volumes.append(docker_mount)
+        job.spec.template.spec.volumes.append(secret_mount)
+        job.spec.template.spec.init_containers.append(container)
 
 
     # --------------------------------------------------------------------------
