@@ -13,6 +13,6 @@ for IMAGE in $(gcloud container images list --format="get(name)"); do
    done
 done
 
-#TODO: also remove old blobs from cloud storage
+# Cloud storage is cleaned via lifecycle management.
 
 #EOF
