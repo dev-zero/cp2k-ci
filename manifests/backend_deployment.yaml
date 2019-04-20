@@ -14,7 +14,8 @@ spec:
         app: cp2kci-backend-app
     spec:
       terminationGracePeriodSeconds: 1
-      serviceAccountName: cp2kci-backend-account
+      # This is the kubernetes account, there is also a GCP backend account.
+      serviceAccountName: cp2kci-backend-k8s-account
       automountServiceAccountToken: True
       dnsPolicy: Default
       nodeSelector:
