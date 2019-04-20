@@ -105,11 +105,10 @@ class KubernetesUtil:
                                               name=docker_volname)
 
         # secret stuff
-        secret_name = "backend-gcp-key"
-        secret_source = self.api.V1SecretVolumeSource(secret_name=secret_name)
-        secret_volume = self.api.V1Volume(name="backend-gcp-key-volume",
+        secret_source = self.api.V1SecretVolumeSource(secret_name="runner-gcp-key")
+        secret_volume = self.api.V1Volume(name="runner-gcp-key-volume",
                                           secret=secret_source)
-        secret_mount = self.api.V1VolumeMount(name="backend-gcp-key-volume",
+        secret_mount = self.api.V1VolumeMount(name="runner-gcp-key-volume",
                                               mount_path="/var/secrets/google",
                                               read_only=True)
         env_vars["GOOGLE_APPLICATION_CREDENTIALS"] = "/var/secrets/google/key.json"

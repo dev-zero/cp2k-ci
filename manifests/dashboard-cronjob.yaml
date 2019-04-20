@@ -17,9 +17,9 @@ spec:
           nodeSelector:
             beta.kubernetes.io/instance-type: n1-standard-1
           volumes:
-          - name: backend-gcp-key-volume
+          - name: cronjob-gcp-key-volume
             secret:
-              secretName: "backend-gcp-key"
+              secretName: "cronjob-gcp-key"
           containers:
           - name: cp2kci-dashboard-cronjob-container
             image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
@@ -31,7 +31,7 @@ spec:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: '/var/secrets/google/key.json'
             volumeMounts:
-            - name: backend-gcp-key-volume
+            - name: cronjob-gcp-key-volume
               mountPath: "/var/secrets/google"
               readOnly: true
 
