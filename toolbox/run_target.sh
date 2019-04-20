@@ -111,9 +111,10 @@ PROJECT=$(gcloud config list --format 'value(core.project)')
 PROJECT=${PROJECT:-"cp2k-org-project"}
 
 # Update git repo which contains the Dockerfiles.
-cd "/workspace/${GIT_REPO}" || exit 1
+cd "/workspace/${GIT_REPO}" || exit
 git fetch origin "${GIT_REF}"
 git -c advice.detachedHead=false checkout "${GIT_REF}"
+git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a "${REPORT}"
 
 # Pull or build docker containers.
 if [ "${TOOLCHAIN}" == "yes" ] ; then
@@ -137,7 +138,7 @@ fi
 if [ ! -z "$(ls -A ${ARTIFACTS_DIR})" ]; then
     echo -en "\nUploading artifacts... " | tee -a "${REPORT}"
     ARTIFACTS_TGZ="/tmp/artifacts.tgz"
-    cd "${ARTIFACTS_DIR}" || exit 1
+    cd "${ARTIFACTS_DIR}" || exit
     tar -czf "${ARTIFACTS_TGZ}" -- *
     upload_file "${ARTIFACTS_UPLOAD_URL}" "${ARTIFACTS_TGZ}" "application/gzip"
     echo "done" >> "${REPORT}"
