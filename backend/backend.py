@@ -302,7 +302,7 @@ def submit_check_run(target, gh, pr, sender):
         'cp2kci/check_run_html_url': check_run['html_url'],
         'cp2kci/check_run_status': 'queued',
     }
-    cache_key = "pull{}".format(pr['number'])
+    cache_key = "pull-{}".format(pr['number'])
     kubeutil.submit_run(target, pr['merge_commit_sha'], cache_key, job_annotations, "high-priority")
 
 #===================================================================================================
