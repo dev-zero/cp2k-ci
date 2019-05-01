@@ -61,7 +61,7 @@ class KubernetesUtil:
         return self.api.V1Affinity(node_affinity=node_affinity)
 
     # --------------------------------------------------------------------------
-    def submit_run(self, target, git_ref, job_annotations, priority=None):
+    def submit_run(self, target, git_ref, cache_key, job_annotations, priority=None):
         print("Submitting run for target: {}.".format(target))
 
         job_name = "run-" + target + "-" + str(uuid4())[:8]
@@ -77,6 +77,7 @@ class KubernetesUtil:
         env_vars = {}
         env_vars["TARGET"] = target
         env_vars["GIT_REF"] = git_ref
+        env_vars["CACHE_KEY"] = cache_key
         env_vars["GIT_REPO"] = self.config.get(target, "repository")
         env_vars["DOCKERFILE"] = self.config.get(target, "dockerfile")
         env_vars["REPORT_UPLOAD_URL"] = self.get_upload_url(report_path)

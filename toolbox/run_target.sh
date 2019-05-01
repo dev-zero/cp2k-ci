@@ -6,7 +6,7 @@
 set -o pipefail
 
 # Check input.
-for key in TARGET DOCKERFILE TOOLCHAIN GIT_REPO GIT_REF REPORT_UPLOAD_URL ARTIFACTS_UPLOAD_URL ; do
+for key in TARGET DOCKERFILE CACHE_KEY TOOLCHAIN GIT_REPO GIT_REF REPORT_UPLOAD_URL ARTIFACTS_UPLOAD_URL ; do
     value="$(eval echo \$${key})"
     if [ -z "$value" ] ; then
         echo "\$${key} is empty"
@@ -50,8 +50,8 @@ function docker_pull_or_build {
     local git_tree_sha=$(git ls-tree -d  HEAD "${build_context}" | awk '{print $3}')
     local build_args_hash=$(echo "${build_args[@]}" | md5sum | awk '{print $1}')
     local cpuid_hash=$(echo "${CPUID}" | md5sum | awk '{print $1}')
-    local image_tag="gittree-${git_tree_sha::7}-buildargs-${build_args_hash::7}-cpuid-${cpuid_hash::3}"
-    local image_name="gcr.io/${PROJECT}/img_${this_target}"
+    local image_name="gcr.io/${PROJECT}/img_${this_target}-cpuid-${cpuid_hash::3}"
+    local image_tag="gittree-${git_tree_sha::7}-buildargs-${build_args_hash::7}"
     local image_ref="${image_name}:${image_tag}"
 
     echo -en "Trying to pull image ${this_target}... " | tee -a "${REPORT}"
@@ -60,16 +60,13 @@ function docker_pull_or_build {
     else
         echo "image not found." >> "${REPORT}"
         echo -e "\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
-        local warm_cache_ref="${image_name}:warm-cache-cpuid-${cpuid_hash::3}"
-        # TODO: remove usage of :latest image
-        docker image pull "${warm_cache_ref}" || \
-        docker image pull "${image_name}:latest"
-        set -x  # TODO: remove
+        local cache_ref="${image_name}:${CACHE_KEY}"
+        docker image pull "${cache_ref}" || docker image pull "${image_name}:master"
         if ! docker build \
-               --cache-from "${warm_cache_ref}" \
-               --cache-from "${image_name}:latest" \
+               --cache-from "${cache_ref}" \
+               --cache-from "${image_name}:master" \
                --tag "${image_ref}" \
-               --tag "${warm_cache_ref}" \
+               --tag "${cache_ref}" \
                --file ".${this_dockerfile}" \
                "${build_args[@]}" "${build_context}" |& tee -a "${REPORT}" ; then
           echo -e "\nSummary: Docker build had non-zero exit status.\nStatus: FAILED" | tee -a "${REPORT}"
@@ -78,7 +75,7 @@ function docker_pull_or_build {
         fi
         echo -en "\nPushing image ${this_target}... " | tee -a "${REPORT}"
         docker image push "${image_ref}"
-        docker image push "${warm_cache_ref}"
+        docker image push "${cache_ref}"
         echo "done." >> "${REPORT}"
     fi
 
@@ -92,7 +89,7 @@ function docker_pull_or_build {
 REPORT=/tmp/report.txt
 CPUID=$(cpuid -1 | grep "(synth)" | cut -c14-)
 START_DATE=$(date --utc --rfc-3339=seconds)
-echo -e "StartDate: ${START_DATE}\nCpuId: ${CPUID}\n" | tee -a "${REPORT}"
+echo -e "StartDate: ${START_DATE}\nCpuId: ${CPUID}" | tee -a "${REPORT}"
 
 # Upload preliminary report every 30s in the background.
 (

@@ -48,10 +48,8 @@ spec:
         volumeMounts:
         - name: backend-gcp-key-volume
           mountPath: "/var/secrets/google"
-          readOnly: true
         - name: github-app-key-volume
           mountPath: "/var/secrets/github-app-key"
-          readOnly: true
         #livenessProbe:
         #  periodSeconds: 60
         #  httpGet:
