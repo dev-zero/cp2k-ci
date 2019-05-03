@@ -23,8 +23,8 @@ repository:   cp2k
 cpu:          32
 nodepools:    pool-highcpu-32-haswell
 tags:         required_check_run dashboard
-related_path: Makefile|src|tests|exts|tools/(build_utils|regtesting|toolchain)
-build_args:   TOOLCHAIN=${IMAGE_BASE}/img_cp2k-toolchain:latest
+related_path: Makefile|src|tests|exts|tools/(build_utils|regtesting|toolchain|docker)
+toolchain:    yes
 dockerfile:   /tools/docker/Dockerfile.test_sdbg
 ```
 
@@ -32,7 +32,7 @@ The fields have the following meaning. All lists are white-space separated.
 
 
 | Field        | Description                                                                                  |
-| ------------ | -------------------------------------------------------------------------------------------- |
+| ------------ | ---------------------------------------------------------------------------------------------|
 | [foo-bar]    | Internal name used e.g. in report url.                                                       |
 | display_name | Visible name of check run.                                                                   |
 | repository   | Name of repository below https://github.com/cp2k/ .                                          |
@@ -40,15 +40,14 @@ The fields have the following meaning. All lists are white-space separated.
 | nodepools    | List of eligible nodepools, [see also](setup/create_node_pools.sh).                          |
 | tags         | Tags which determine when and how this target is build and run.                              |
 | related_path | Regular expression matching relevant files.                                                  |
-| build_args   | List of Docker build arguments, substitutes `${IMAGE_BASE}`.                                 |
+| build_args   | List of Docker build arguments.                                                              |
 | dockerfile   | Path to Dockerfile within given repository.                                                  |
-
+| toolchain    | Flag to enable special treatment for Dockerfiles that derive from the CP2K toolchain.        |
 
 Tags determine when and how a target is build and run.
 
 | Tag                 | Description                                                                                  |
 | ------------------- | -------------------------------------------------------------------------------------------- |
-| exclude_build_all   | Do **not** build this target when the `build_all` RPC is received.                           |
 | required_check_run  | Automatically run this as check run for every pull request.                                  |
 | optional_check_run  | Add this as an optional check run for every pull request.                                    |
 | dashboard           | Run this target when the `submit_all_dashboard_tests` RPC is received.                       |
@@ -61,17 +60,11 @@ The CP2K-CI passes as input the following environment variables to its container
 
 | Environment Variable   | Description                                                                |
 | ---------------------- | -------------------------------------------------------------------------- |
-|  `GIT_BRANCH`          | Git branch to test, e.g. `master` or `pull/42/head`.                       |
-|  `GIT_REF`             | Git ref to test from given branch, typically the SHA of the latest commit. |
-| `REPORT_UPLOAD_URL`    | Signed url for mandatory upload of report.                                 |
-| `ARTIFACTS_UPLOAD_URL` | Signed url for optional upload of archive with artifacts.                  |
+| `GIT_BRANCH`           | Git branch to test, e.g. `master` or `pull/42/merge`.                      |
+| `GIT_REF`              | Git ref to test from given branch, typically the SHA of the latest commit. |
 
-The containers output their results by uploading files to the given URLs. The report should use the [dashboard format](https://www.cp2k.org/dev:dashboard). For the uploading the `wget` command can be used:
-```
-wget --method=PUT --header="cache-control: no-cache" --header="content-type: text/plain;charset=utf-8" --body-file="${FILE}" "${REPORT_UPLOAD_URL}"
-wget --method=PUT --header="cache-control: no-cache" --header="content-type: application/gzip" --body-file="${FILE}" "${ARTIFACTS_UPLOAD_URL}"
-```
-
+The container must output a report using the [dashboard format](https://www.cp2k.org/dev:dashboard).
+Additionally, the container can make files available to the user by writting them to `/workspace/artifacts`.
 
 
 ## Implementation
@@ -94,8 +87,9 @@ The CP2K-CI system consists of three components. Each resides in its own sub dir
 - All state information is stored in the job's [metadata](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) and the check run's [external_id](https://developer.github.com/v3/checks/runs/#parameters).
 
 ### Toolbox
-- Collection of utility scripts that are run occasionally.
-- Used for building [containers](./toolbox/build_target.sh) and running [CronJobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/), e.g. for the [Dashboard](manifests/dashboard-cronjob.yaml).
+- Collection of utility scripts.
+- Used for building and running [targets](./toolbox/run_target.sh).
+- Used for running [CronJobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/), e.g. for the [Dashboard](manifests/dashboard-cronjob.yaml).
 - Cron jobs use the [cp2kcictl.py](./toolbox/cp2kcictl.py) command line tool to inject Pub/Sub messages. It doubles as admin tool.
 
 ## Installation
