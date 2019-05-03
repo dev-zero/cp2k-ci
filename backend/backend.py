@@ -302,8 +302,8 @@ def submit_check_run(target, gh, pr, sender):
         'cp2kci/check_run_html_url': check_run['html_url'],
         'cp2kci/check_run_status': 'queued',
     }
-    cache_key = "pull-{}".format(pr['number'])
-    kubeutil.submit_run(target, pr['merge_commit_sha'], cache_key, job_annotations, "high-priority")
+    git_branch = "pull/{}/merge".format(pr['number'])
+    kubeutil.submit_run(target, git_branch, pr['merge_commit_sha'], job_annotations, "high-priority")
 
 #===================================================================================================
 def submit_dashboard_test(target, head_sha, force=False):
@@ -323,7 +323,7 @@ def submit_dashboard_test(target, head_sha, force=False):
 
     if latest_report_sha != head_sha or force:
         job_annotations = {'cp2kci/dashboard': 'yes'}
-        kubeutil.submit_run(target, head_sha, "master", job_annotations)
+        kubeutil.submit_run(target, "master", head_sha, job_annotations)
 
 #===================================================================================================
 def poll_pull_requests(job_list):

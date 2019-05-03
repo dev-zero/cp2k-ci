@@ -6,7 +6,7 @@
 set -o pipefail
 
 # Check input.
-for key in TARGET DOCKERFILE CACHE_KEY TOOLCHAIN GIT_REPO GIT_REF REPORT_UPLOAD_URL ARTIFACTS_UPLOAD_URL ; do
+for key in TARGET DOCKERFILE TOOLCHAIN GIT_REPO GIT_BRANCH GIT_REF REPORT_UPLOAD_URL ARTIFACTS_UPLOAD_URL ; do
     value="$(eval echo \$${key})"
     if [ -z "$value" ] ; then
         echo "\$${key} is empty"
@@ -60,7 +60,7 @@ function docker_pull_or_build {
     else
         echo "image not found." >> "${REPORT}"
         echo -e "\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
-        local cache_ref="${image_name}:${CACHE_KEY}"
+        local cache_ref="${image_name}:${GIT_BRANCH//\//-}"
         docker image pull "${cache_ref}" || docker image pull "${image_name}:master"
         if ! docker build \
                --cache-from "${cache_ref}" \
@@ -109,7 +109,7 @@ PROJECT=${PROJECT:-"cp2k-org-project"}
 
 # Update git repo which contains the Dockerfiles.
 cd "/workspace/${GIT_REPO}" || exit
-git fetch origin "${GIT_REF}"
+git fetch origin "${GIT_BRANCH}"
 git -c advice.detachedHead=false checkout "${GIT_REF}"
 git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a "${REPORT}"
 
@@ -125,6 +125,7 @@ echo -e "\n#################### Running Image ${TARGET} ####################" | 
 ARTIFACTS_DIR="/tmp/artifacts"
 mkdir "${ARTIFACTS_DIR}"
 if ! docker run --init --cap-add=SYS_PTRACE \
+       --env "GIT_BRANCH=${GIT_BRANCH}" \
        --env "GIT_REF=${GIT_REF}" \
        --volume "${ARTIFACTS_DIR}:/workspace/artifacts" \
        "${IMAGE_REF}"  |& tee -a "${REPORT}" ; then
