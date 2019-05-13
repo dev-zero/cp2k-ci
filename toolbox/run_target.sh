@@ -53,6 +53,7 @@ function docker_pull_or_build {
     local image_name="gcr.io/${PROJECT}/img_${this_target}-cpuid-${cpuid_hash::3}"
     local image_tag="gittree-${git_tree_sha::7}-buildargs-${build_args_hash::7}"
     local image_ref="${image_name}:${image_tag}"
+    local cache_ref="${image_name}:${GIT_BRANCH//\//-}"
 
     echo -en "Trying to pull image ${this_target}... " | tee -a "${REPORT}"
     if docker image pull "${image_ref}" ; then
@@ -60,13 +61,11 @@ function docker_pull_or_build {
     else
         echo "image not found." >> "${REPORT}"
         echo -e "\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
-        local cache_ref="${image_name}:${GIT_BRANCH//\//-}"
         docker image pull "${cache_ref}" || docker image pull "${image_name}:master"
         if ! docker build \
                --cache-from "${cache_ref}" \
                --cache-from "${image_name}:master" \
                --tag "${image_ref}" \
-               --tag "${cache_ref}" \
                --file ".${this_dockerfile}" \
                "${build_args[@]}" "${build_context}" |& tee -a "${REPORT}" ; then
           echo -e "\nSummary: Docker build had non-zero exit status.\nStatus: FAILED" | tee -a "${REPORT}"
@@ -75,9 +74,11 @@ function docker_pull_or_build {
         fi
         echo -en "\nPushing image ${this_target}... " | tee -a "${REPORT}"
         docker image push "${image_ref}"
-        docker image push "${cache_ref}"
         echo "done." >> "${REPORT}"
     fi
+
+    docker tag "${image_ref}" "${cache_ref}"
+    docker image push "${cache_ref}"
 
     # Export image_ref into gobal variable for subsequent docker build or run.
     IMAGE_REF=${image_ref}
