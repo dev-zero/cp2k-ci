@@ -283,7 +283,7 @@ def submit_check_run(target, gh, pr, sender):
         related_path_re = re.compile(config.get(target, "related_path"))
         modified_files = [e['filename'] for e in gh.get(pr['url'] + '/files')]
         if not any([related_path_re.match(fn) for fn in modified_files]):
-            summary = "No files related to regtests were changed - skipping."
+            summary = "No related files were changed - skipping."
             check_run["output"] = {"title":summary, "summary": ""}
             check_run["started_at"] = gh.now()
             check_run["completed_at"] = gh.now()
