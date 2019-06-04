@@ -332,9 +332,7 @@ def poll_pull_requests(job_list):
     active_check_runs_urls = []
     for job in job_list.items:
         annotations = job.metadata.annotations
-        if not job.status.active and job.status.failed:
-            continue  # job failed
-        if "cp2kci/check_run_url" in annotations:
+        if job.status.active and "cp2kci/check_run_url" in annotations:
             active_check_runs_urls.append(annotations['cp2kci/check_run_url'])
 
     all_repos = set([config.get(t, "repository") for t in config.sections()])
