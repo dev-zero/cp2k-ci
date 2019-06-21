@@ -26,7 +26,8 @@ class GithubUtil:
     # --------------------------------------------------------------------------
     def print_rate_limit(self, response):
         remaining = response.headers.get('X-RateLimit-Remaining', None)
-        print("X-RateLimit-Remaining: {}".format(remaining))
+        if remaining and remaining < 100:
+            print("X-RateLimit-Remaining: {}".format(remaining))
 
     # --------------------------------------------------------------------------
     def get_installation_token(self):
