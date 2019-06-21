@@ -166,7 +166,7 @@ def process_github_event(event, body):
         pass # Unhandled github even - there are many of these.
 
 #===================================================================================================
-def await_mergeability(gh, pr, check_run_name):
+def await_mergeability(gh, pr, check_run_name, check_run_external_id):
     # https://developer.github.com/v3/git/#checking-mergeability-of-pull-requests
 
     if pr['mergeable'] is not None:
@@ -175,6 +175,7 @@ def await_mergeability(gh, pr, check_run_name):
     # This might take a while, tell the user and disable resubmit buttons.
     check_run = {
         "name": check_run_name,
+        "external_id": check_run_external_id,
         "head_sha": pr['head']['sha'],
         "started_at": gh.now(),
         "output": {"title": "Waiting for mergeability check", "summary": ""}
@@ -216,7 +217,7 @@ def process_pull_request(gh, pr_number, sender):
     }
 
     commits = gh.get(pr['commits_url'])
-    await_mergeability(gh, pr,  check_run['name'])
+    await_mergeability(gh, pr, check_run['name'], check_run['external_id'])
 
     if not pr['mergeable']:
         check_run['conclusion'] = 'failure'
@@ -291,7 +292,7 @@ def submit_check_run(target, gh, pr, sender):
             gh.post("/check-runs", check_run)
             return
 
-    await_mergeability(gh, pr,  check_run['name'])
+    await_mergeability(gh, pr,  check_run['name'], check_run['external_id'])
 
     # related files were modified, let's submit job.
     check_run = gh.post("/check-runs", check_run)
