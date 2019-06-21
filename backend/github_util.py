@@ -24,6 +24,11 @@ class GithubUtil:
         return self.get("/commits")[0]['sha']
 
     # --------------------------------------------------------------------------
+    def print_rate_limit(self, response):
+        remaining = response.headers.get('X-RateLimit-Remaining', None)
+        print("X-RateLimit-Remaining: {}".format(remaining))
+
+    # --------------------------------------------------------------------------
     def get_installation_token(self):
         # Create App JWT token.
         now = int(time())
@@ -39,6 +44,7 @@ class GithubUtil:
         # Obtain installation access token.
         url = "https://api.github.com/app/installations/{}/access_tokens"
         r = requests.post(url.format(GITHUB_APP_INSTALL_ID), headers=headers)
+        self.print_rate_limit(r)
         return r.json()['token']
 
     # --------------------------------------------------------------------------
@@ -58,6 +64,7 @@ class GithubUtil:
         headers = {"Authorization": "token " + self.token,
                    "Accept": "application/vnd.github.antiope-preview+json"}
         r = requests.get(url, headers=headers)
+        self.print_rate_limit(r)
         if r.status_code >= 400:
             print(r.text)
         r.raise_for_status()
@@ -70,6 +77,7 @@ class GithubUtil:
         headers = {"Authorization": "token " + self.token,
                    "Accept": "application/vnd.github.antiope-preview+json"}
         r = requests.post(url, headers=headers, json=body)
+        self.print_rate_limit(r)
         if r.status_code >= 400:
             print(r.text)
         r.raise_for_status()
@@ -82,6 +90,7 @@ class GithubUtil:
         headers = {"Authorization": "token " + self.token,
                    "Accept": "application/vnd.github.antiope-preview+json"}
         r = requests.patch(url, headers=headers, json=body)
+        self.print_rate_limit(r)
         if r.status_code >= 400:
             print(r.text)
         r.raise_for_status()
