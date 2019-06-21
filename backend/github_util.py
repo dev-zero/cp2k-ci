@@ -26,7 +26,7 @@ class GithubUtil:
     # --------------------------------------------------------------------------
     def print_rate_limit(self, response):
         remaining = response.headers.get('X-RateLimit-Remaining', None)
-        if remaining and remaining < 100:
+        if remaining and int(remaining) < 100:
             print("X-RateLimit-Remaining: {}".format(remaining))
 
     # --------------------------------------------------------------------------
