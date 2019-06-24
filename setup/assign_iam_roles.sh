@@ -28,6 +28,7 @@ gcloud projects add-iam-policy-binding $PROJECT --member="serviceAccount:${RUNNE
 
 # cronjob
 gcloud projects add-iam-policy-binding $PROJECT --member="serviceAccount:${CRONJOB_ACCOUNT}" --role="roles/pubsub.publisher"           # for sending messsages to backend
+gcloud projects add-iam-policy-binding $PROJECT --member="serviceAccount:${CRONJOB_ACCOUNT}" --role="roles/storage.admin"              # for removing old images
 
 # cloud builder
 gcloud projects add-iam-policy-binding $PROJECT --member="serviceAccount:${CLOUDBUILD_ACCOUNT}" --role="roles/compute.instanceAdmin"   # for updating frontend container

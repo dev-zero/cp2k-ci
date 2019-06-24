@@ -12,16 +12,26 @@ spec:
       template:
         spec:
           restartPolicy: Never
-          automountServiceAccountToken: True
+          automountServiceAccountToken: False
           dnsPolicy: Default
           nodeSelector:
             beta.kubernetes.io/instance-type: n1-standard-1
+          volumes:
+          - name: cronjob-gcp-key-volume
+            secret:
+              secretName: "cronjob-gcp-key"
           containers:
           - name: cp2kci-cleanup-cronjob-container
+            image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
+            command: ["/opt/cp2kci-toolbox/cleanup.sh"]
             resources:
               requests:
                 cpu: 1m
-            image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
-            command: ["/opt/cp2kci-toolbox/cleanup.sh"]
+            env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: '/var/secrets/google/key.json'
+            volumeMounts:
+            - name: cronjob-gcp-key-volume
+              mountPath: "/var/secrets/google"
 
 #EOF

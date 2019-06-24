@@ -4,6 +4,9 @@
 
 # Remove old GCP container images.
 
+#https://issuetracker.google.com/issues/38098801
+gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+
 echo "Looking for old images..."
 
 for IMAGE in $(gcloud container images list --format="get(name)"); do
