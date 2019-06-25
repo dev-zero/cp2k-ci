@@ -21,7 +21,7 @@ gcloud compute instances create \
    --machine-type="f1-micro" \
    --image-project="cos-cloud" \
    --image-family="cos-stable" \
-   --address="35.208.181.14" \
+   --address="35.222.79.114" \
    --disk="name=${DISK_NAME}" \
    --tags="http-server,https-server" \
    --service-account="${FRONTEND_ACCOUNT}" \
