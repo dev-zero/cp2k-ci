@@ -33,11 +33,23 @@ RUN wget -q https://www.cp2k.org/static/downloads/cpuid-20180519.x86_64.tar.gz &
 
 # install docker
 RUN wget -O docker.gpg https://download.docker.com/linux/ubuntu/gpg && \
-    apt-key add ./docker.gpg && \
+    apt-key add docker.gpg && \
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
     apt-get update && \
     apt-get install -y docker-ce && \
     rm -rf /var/lib/apt/lists/*
+
+# install nvidia container runtime
+# https://github.com/nvidia/nvidia-container-runtime
+RUN wget -O nvidia.gpg https://nvidia.github.io/nvidia-container-runtime/gpgkey && \
+    apt-key add nvidia.gpg && \
+    wget -O /etc/apt/sources.list.d/nvidia-container-runtime.list \
+            https://nvidia.github.io/nvidia-container-runtime/ubuntu$(lsb_release -rs)/nvidia-container-runtime.list && \
+    apt-get update && \
+    apt-get install -y nvidia-container-runtime && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY docker_daemon.json /etc/docker/daemon.json
 
 # install gcloud
 RUN wget -O gcloud.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg && \
