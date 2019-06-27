@@ -24,7 +24,7 @@ cpu:          32
 nodepools:    pool-highcpu-32-haswell
 tags:         required_check_run dashboard
 related_path: Makefile|src|tests|exts|tools/(build_utils|regtesting|toolchain|docker)
-toolchain:    yes
+toolchain:    mpich
 dockerfile:   /tools/docker/Dockerfile.test_sdbg
 ```
 

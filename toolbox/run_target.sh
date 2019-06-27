@@ -115,11 +115,11 @@ git -c advice.detachedHead=false checkout "${GIT_REF}"
 git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a "${REPORT}"
 
 # Pull or build docker containers.
-if [ "${TOOLCHAIN}" == "yes" ] ; then
-    docker_pull_or_build cp2k-toolchain /tools/toolchain/Dockerfile
-    docker_pull_or_build "${TARGET}" "${DOCKERFILE}" --build-arg "TOOLCHAIN=${IMAGE_REF}"
-else
+if [ "${TOOLCHAIN}" == "" ] ; then
     docker_pull_or_build "${TARGET}" "${DOCKERFILE}"
+else
+    docker_pull_or_build "cp2k-toolchain-${TOOLCHAIN}" /tools/toolchain/Dockerfile --build-arg "MPI_MODE=${TOOLCHAIN}"
+    docker_pull_or_build "${TARGET}" "${DOCKERFILE}" --build-arg "TOOLCHAIN=${IMAGE_REF}"
 fi
 
 echo -e "\n#################### Running Image ${TARGET} ####################" | tee -a "${REPORT}"
