@@ -85,8 +85,8 @@ class KubernetesUtil:
             self.get_upload_url(artifacts_path, content_type="application/gzip")
 
         # special treatment for cp2k toolchain based targets
-        toolchain = self.config.get(target, "toolchain", fallback="")
-        assert not toolchain or env_vars["GIT_REPO"] == "cp2k"
+        toolchain = self.config.get(target, "toolchain", fallback="no")
+        assert toolchain=="no" or env_vars["GIT_REPO"] == "cp2k"
         env_vars["TOOLCHAIN"] = toolchain
 
         # metadata
