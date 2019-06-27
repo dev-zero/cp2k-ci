@@ -32,28 +32,39 @@ RUN wget -q https://www.cp2k.org/static/downloads/cpuid-20180519.x86_64.tar.gz &
     cp ./cpuid-20180519/cpuid /usr/bin/
 
 # install docker
-RUN wget -O docker.gpg https://download.docker.com/linux/ubuntu/gpg && \
-    apt-key add docker.gpg && \
+RUN wget -qO- docker.gpg https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
     apt-get update && \
     apt-get install -y docker-ce && \
     rm -rf /var/lib/apt/lists/*
 
-# install nvidia container runtime
-# https://github.com/nvidia/nvidia-container-runtime
-RUN wget -O nvidia.gpg https://nvidia.github.io/nvidia-container-runtime/gpgkey && \
-    apt-key add nvidia.gpg && \
-    wget -O /etc/apt/sources.list.d/nvidia-container-runtime.list \
-            https://nvidia.github.io/nvidia-container-runtime/ubuntu$(lsb_release -rs)/nvidia-container-runtime.list && \
+# install cuda base libraries
+# https://gitlab.com/nvidia/cuda/blob/ubuntu18.04/10.1/base/Dockerfile
+# For libraries in the cuda-compat-* package: https://docs.nvidia.com/cuda/eula/index.html#attachment-a
+RUN wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub | apt-key add - && \
+    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
+    echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
     apt-get update && \
-    apt-get install -y nvidia-container-runtime && \
+    apt-get install -y --no-install-recommends cuda-cudart-10.1 cuda-compat-10-1 && \
+    ln -s cuda-10.1 /usr/local/cuda && \
     rm -rf /var/lib/apt/lists/*
 
-COPY docker_daemon.json /etc/docker/daemon.json
+ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+ENV NVIDIA_REQUIRE_CUDA "cuda>=10.1 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=396,driver<397 brand=tesla,driver>=410,driver<411"
+
+# install nvidia-docker
+# https://github.com/NVIDIA/nvidia-docker
+RUN wget -qO- https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add - && \
+    wget -qO- https://nvidia.github.io/nvidia-docker/ubuntu$(lsb_release -rs)/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list && \
+    apt-get update && \
+    apt-get install -y nvidia-docker2 && \
+    rm -rf /var/lib/apt/lists/*
 
 # install gcloud
-RUN wget -O gcloud.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg && \
-    apt-key add gcloud.gpg && \
+RUN wget -qO- https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
     add-apt-repository "deb http://packages.cloud.google.com/apt cloud-sdk-$(lsb_release -cs) main"  && \
     apt-get update && \
     apt-get install -y google-cloud-sdk && \
