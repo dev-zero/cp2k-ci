@@ -309,7 +309,7 @@ def submit_check_run(target, gh, pr, sender):
     check_run = gh.post("/check-runs", check_run)
     job_annotations = {
         'cp2kci/sender': sender,
-        'cp2kci/pull_request_number': pr['number'],
+        'cp2kci/pull_request_number': str(pr['number']),
         'cp2kci/pull_request_html_url': pr['html_url'],
         'cp2kci/check_run_url': check_run['url'],
         'cp2kci/check_run_html_url': check_run['html_url'],
