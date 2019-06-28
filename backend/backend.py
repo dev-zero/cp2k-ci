@@ -331,7 +331,12 @@ def cancel_check_runs(target, gh, pr, sender):
             'status': 'completed',
             'conclusion': 'cancelled',
             'completed_at': gh.now(),
-            'output': {'title': 'Cancelled', 'summary': summary}
+            'output': {'title': 'Cancelled', 'summary': summary},
+            'actions': [{
+                'label': 'Run test',
+                'identifier': 'run',
+                'description': 'Restart test run'
+            }]
         }
         gh.patch(job_annotations['cp2kci/check_run_url'], check_run)
         kubeutil.delete_job(job.metadata.name)
