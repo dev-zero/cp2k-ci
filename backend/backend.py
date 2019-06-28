@@ -155,11 +155,13 @@ def process_github_event(event, body):
         pr_number, target = parse_external_id(ext_id)
         requested_action = body["requested_action"]["identifier"]
         sender = body["sender"]["login"]
+        repo = body["repository"]["name"]
+        gh = GithubUtil(repo)
+        pr = gh.get("/pulls/{}".format(pr_number))
         if requested_action == "run":
-            repo = body["repository"]["name"]
-            gh = GithubUtil(repo)
-            pr = gh.get("/pulls/{}".format(pr_number))
             submit_check_run(target, gh, pr, sender)
+        elif requested_action == "cancel":
+            cancel_check_runs(target, gh, pr, sender)
         else:
             print("Unknown requested action: {}".format(requested_action))
     else:
@@ -206,6 +208,9 @@ def process_pull_request(gh, pr_number, sender):
     if pr['base']['ref'] != 'master':
         print("Ignoring PR for non-master branch: " + pr['base']['ref'])
         return
+
+    # cancel old jobs
+    cancel_check_runs(target="*", gh=gh, pr=pr, sender=sender)
 
     # check git history
     check_run = {
@@ -294,10 +299,17 @@ def submit_check_run(target, gh, pr, sender):
 
     await_mergeability(gh, pr,  check_run['name'], check_run['external_id'])
 
+    check_run["actions"] = [{
+        "label": "Cancel",
+        "identifier": "cancel",
+        "description": "Abort this test run",
+    }]
+
     # related files were modified, let's submit job.
     check_run = gh.post("/check-runs", check_run)
     job_annotations = {
         'cp2kci/sender': sender,
+        'cp2kci/pull_request_number': pr['number'],
         'cp2kci/pull_request_html_url': pr['html_url'],
         'cp2kci/check_run_url': check_run['url'],
         'cp2kci/check_run_html_url': check_run['html_url'],
@@ -305,6 +317,29 @@ def submit_check_run(target, gh, pr, sender):
     }
     git_branch = "pull/{}/merge".format(pr['number'])
     kubeutil.submit_run(target, git_branch, pr['merge_commit_sha'], job_annotations, "high-priority")
+
+#===================================================================================================
+def cancel_check_runs(target, gh, pr, sender):
+    run_job_list = kubeutil.list_jobs('cp2kci=run')
+    for job in run_job_list.items:
+        job_annotations = job.metadata.annotations
+        if 'cp2kci/pull_request_number' not in job_annotations: continue
+        if job_annotations['cp2kci/pull_request_number'] != pr['number']: continue
+        if job_annotations['cp2kci/check_run_status'] != 'queued': continue
+        if target != '*' and job_annotations['cp2kci/target'] != target: continue
+
+        # Ok found a matching job to cancel.
+        report_blob = output_bucket.blob(job_annotations['cp2kci/report_path'])
+        summary = '[Partial Report]({})'.format(report_blob.public_url)
+        summary += '\n\nCancelled by @{}.'.format(sender)
+        check_run = {
+            'status': 'completed',
+            'conclusion': 'cancelled',
+            'completed_at': gh.now(),
+            'output': {'title': 'Cancelled', 'summary': summary}
+        }
+        gh.patch(job_annotations['cp2kci/check_run_url'], check_run)
+        kubeutil.delete_job(job.metadata.name)
 
 #===================================================================================================
 def submit_dashboard_test(target, head_sha, force=False):
