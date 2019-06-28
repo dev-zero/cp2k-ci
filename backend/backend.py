@@ -314,11 +314,12 @@ def submit_check_run(target, gh, pr, sender):
 
 #===================================================================================================
 def cancel_check_runs(target, gh, pr, sender):
+    print("Canceling target {} for pr {}.".format(target, pr['number']))
     run_job_list = kubeutil.list_jobs('cp2kci=run')
     for job in run_job_list.items:
         job_annotations = job.metadata.annotations
         if 'cp2kci/pull_request_number' not in job_annotations: continue
-        if job_annotations['cp2kci/pull_request_number'] != pr['number']: continue
+        if int(job_annotations['cp2kci/pull_request_number']) != pr['number']: continue
         if job_annotations['cp2kci/check_run_status'] != 'in_progress': continue
         if target != '*' and job_annotations['cp2kci/target'] != target: continue
 
