@@ -299,12 +299,6 @@ def submit_check_run(target, gh, pr, sender):
 
     await_mergeability(gh, pr,  check_run['name'], check_run['external_id'])
 
-    check_run["actions"] = [{
-        "label": "Cancel",
-        "identifier": "cancel",
-        "description": "Abort this test run",
-    }]
-
     # related files were modified, let's submit job.
     check_run = gh.post("/check-runs", check_run)
     job_annotations = {
@@ -325,7 +319,7 @@ def cancel_check_runs(target, gh, pr, sender):
         job_annotations = job.metadata.annotations
         if 'cp2kci/pull_request_number' not in job_annotations: continue
         if job_annotations['cp2kci/pull_request_number'] != pr['number']: continue
-        if job_annotations['cp2kci/check_run_status'] != 'queued': continue
+        if job_annotations['cp2kci/check_run_status'] != 'in_progress': continue
         if target != '*' and job_annotations['cp2kci/target'] != target: continue
 
         # Ok found a matching job to cancel.
@@ -455,6 +449,12 @@ def publish_job_to_github(job):
     else:
         check_run['output']['title'] = "In Progress..."
         summary = '[Live Report]({}) (updates every 30s)'.format(report_blob.public_url)
+        check_run["actions"] = [{
+            "label": "Cancel",
+            "identifier": "cancel",
+            "description": "Abort this test run",
+        }]
+
 
     sender = job_annotations['cp2kci/sender']
     summary += "\n\nTriggered by @{}.".format(sender)
