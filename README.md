@@ -40,9 +40,9 @@ The fields have the following meaning. All lists are white-space separated.
 | nodepools    | List of eligible nodepools, [see also](setup/create_node_pools.sh).                          |
 | tags         | Tags which determine when and how this target is build and run.                              |
 | related_path | Regular expression matching relevant files.                                                  |
-| build_args   | List of Docker build arguments.                                                              |
+| build_args   | List of Docker build arguments. If parent is present `__PARENT_IMAGE__` gets substituted.    |
 | dockerfile   | Path to Dockerfile within given repository.                                                  |
-| toolchain    | Flag to enable special treatment for Dockerfiles that derive from the CP2K toolchain.        |
+| parent       | Optional name of target that has to be build first, e.g. the toolchain.                      |
 
 Tags determine when and how a target is build and run.
 

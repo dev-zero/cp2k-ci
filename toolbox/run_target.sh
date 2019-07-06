@@ -6,12 +6,8 @@
 set -o pipefail
 
 # Check input.
-for key in TARGET DOCKERFILE TOOLCHAIN GIT_REPO GIT_BRANCH GIT_REF REPORT_UPLOAD_URL ARTIFACTS_UPLOAD_URL ; do
+for key in TARGET DOCKERFILE BUILD_ARGS PARENT_TARGET PARENT_DOCKERFILE PARENT_BUILD_ARGS GIT_REPO GIT_BRANCH GIT_REF REPORT_UPLOAD_URL ARTIFACTS_UPLOAD_URL ; do
     value="$(eval echo \$${key})"
-    if [ -z "$value" ] ; then
-        echo "\$${key} is empty"
-        exit 1
-    fi
     echo "${key}=\"${value}\""
 done
 
@@ -26,13 +22,13 @@ function upload_file {
 # Append end date and upload report.
 function upload_final_report {
     local end_date=$(date --utc --rfc-3339=seconds)
-    echo -e "\nEndDate: ${end_date}" | tee -a "${REPORT}"
+    echo -e "\\nEndDate: ${end_date}" | tee -a "${REPORT}"
     upload_file "${REPORT_UPLOAD_URL}" "${REPORT}" "text/plain;charset=utf-8"
 }
 
 # Handle preemption gracefully.
 function sigterm_handler {
-    echo -e "\nThis job just got preempted. No worries, it should restart soon." | tee -a "${REPORT}"
+    echo -e "\\nThis job just got preempted. No worries, it should restart soon." | tee -a "${REPORT}"
     upload_final_report
     exit 1  # trigger retry
 }
@@ -42,13 +38,19 @@ trap sigterm_handler SIGTERM
 function docker_pull_or_build {
     local this_target=$1
     local this_dockerfile=$2
-    shift 2
-    local build_args=( "$@" )
+    local build_args_str=$3
+
+    # Convert build_arg_str into array of flags suitable for docker build.
+    local build_args_flags=()
+    for arg in ${build_args_str} ; do
+        build_args_flags+=("--build-arg")
+        build_args_flags+=("${arg}")
+    done
 
     # Compute cache key for docker image.
     local build_context="."$(dirname "${this_dockerfile}")
     local git_tree_sha=$(git ls-tree -d  HEAD "${build_context}" | awk '{print $3}')
-    local build_args_hash=$(echo "${build_args[@]}" | md5sum | awk '{print $1}')
+    local build_args_hash=$(echo "${build_args_flags[@]}" | md5sum | awk '{print $1}')
     local cpuid_hash=$(echo "${CPUID}" | md5sum | awk '{print $1}')
     local image_name="gcr.io/${PROJECT}/img_${this_target}-cpuid-${cpuid_hash::3}"
     local image_tag="gittree-${git_tree_sha::7}-buildargs-${build_args_hash::7}"
@@ -60,19 +62,19 @@ function docker_pull_or_build {
         echo "success :-)" >> "${REPORT}"
     else
         echo "image not found." >> "${REPORT}"
-        echo -e "\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
+        echo -e "\\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
         docker image pull "${cache_ref}" || docker image pull "${image_name}:master"
         if ! docker build \
                --cache-from "${cache_ref}" \
                --cache-from "${image_name}:master" \
                --tag "${image_ref}" \
                --file ".${this_dockerfile}" \
-               "${build_args[@]}" "${build_context}" |& tee -a "${REPORT}" ; then
-          echo -e "\nSummary: Docker build had non-zero exit status.\nStatus: FAILED" | tee -a "${REPORT}"
+               "${build_args_flags[@]}" "${build_context}" |& tee -a "${REPORT}" ; then
+          echo -e "\\nSummary: Docker build had non-zero exit status.\\nStatus: FAILED" | tee -a "${REPORT}"
           upload_final_report
           exit 0  # Prevent crash looping.
         fi
-        echo -en "\nPushing image ${this_target}... " | tee -a "${REPORT}"
+        echo -en "\\nPushing image ${this_target}... " | tee -a "${REPORT}"
         docker image push "${image_ref}"
         echo "done." >> "${REPORT}"
     fi
@@ -90,7 +92,7 @@ function docker_pull_or_build {
 REPORT=/tmp/report.txt
 CPUID=$(cpuid -1 | grep "(synth)" | cut -c14-)
 START_DATE=$(date --utc --rfc-3339=seconds)
-echo -e "StartDate: ${START_DATE}\nCpuId: ${CPUID}" | tee -a "${REPORT}"
+echo -e "StartDate: ${START_DATE}\\nCpuId: ${CPUID}" | tee -a "${REPORT}"
 
 # Upload preliminary report every 30s in the background.
 (
@@ -115,14 +117,14 @@ git -c advice.detachedHead=false checkout "${GIT_REF}"
 git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n' |& tee -a "${REPORT}"
 
 # Pull or build docker containers.
-if [ "${TOOLCHAIN}" == "no" ] ; then
-    docker_pull_or_build "${TARGET}" "${DOCKERFILE}"
-else
-    docker_pull_or_build "cp2k-toolchain-${TOOLCHAIN}" /tools/toolchain/Dockerfile --build-arg "MPI_MODE=${TOOLCHAIN}"
-    docker_pull_or_build "${TARGET}" "${DOCKERFILE}" --build-arg "TOOLCHAIN=${IMAGE_REF}"
+if [ "${PARENT_TARGET}" != "" ] ; then
+    docker_pull_or_build "${PARENT_TARGET}" "${PARENT_DOCKERFILE}" "${PARENT_BUILD_ARGS}"
+    BUILD_ARGS=${BUILD_ARGS//__PARENT_IMAGE__/${IMAGE_REF}}
 fi
+docker_pull_or_build "${TARGET}" "${DOCKERFILE}" "${BUILD_ARGS}"
 
-echo -e "\n#################### Running Image ${TARGET} ####################" | tee -a "${REPORT}"
+
+echo -e "\\n#################### Running Image ${TARGET} ####################" | tee -a "${REPORT}"
 ARTIFACTS_DIR="/tmp/artifacts"
 mkdir "${ARTIFACTS_DIR}"
 if ! docker run --init --cap-add=SYS_PTRACE \
@@ -130,12 +132,12 @@ if ! docker run --init --cap-add=SYS_PTRACE \
        --env "GIT_REF=${GIT_REF}" \
        --volume "${ARTIFACTS_DIR}:/workspace/artifacts" \
        "${IMAGE_REF}"  |& tee -a "${REPORT}" ; then
-    echo -e "\nSummary: Docker run had non-zero exit status.\nStatus: FAILED" | tee -a "${REPORT}"
+    echo -e "\\nSummary: Docker run had non-zero exit status.\\nStatus: FAILED" | tee -a "${REPORT}"
 fi
 
 # Upload artifacts.
 if [ ! -z "$(ls -A ${ARTIFACTS_DIR})" ]; then
-    echo -en "\nUploading artifacts... " | tee -a "${REPORT}"
+    echo -en "\\nUploading artifacts... " | tee -a "${REPORT}"
     ARTIFACTS_TGZ="/tmp/artifacts.tgz"
     cd "${ARTIFACTS_DIR}" || exit
     tar -czf "${ARTIFACTS_TGZ}" -- *

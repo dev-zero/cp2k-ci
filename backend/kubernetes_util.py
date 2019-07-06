@@ -80,14 +80,19 @@ class KubernetesUtil:
         env_vars["GIT_REF"] = git_ref
         env_vars["GIT_REPO"] = self.config.get(target, "repository")
         env_vars["DOCKERFILE"] = self.config.get(target, "dockerfile")
+        env_vars["BUILD_ARGS"] = self.config.get(target, "build_args", fallback="")
         env_vars["REPORT_UPLOAD_URL"] = self.get_upload_url(report_path)
         env_vars["ARTIFACTS_UPLOAD_URL"] = \
             self.get_upload_url(artifacts_path, content_type="application/gzip")
 
-        # special treatment for cp2k toolchain based targets
-        toolchain = self.config.get(target, "toolchain", fallback="no")
-        assert toolchain=="no" or env_vars["GIT_REPO"] == "cp2k"
-        env_vars["TOOLCHAIN"] = toolchain
+        # optional parent target, ie. cp2k toolchain.
+        if self.config.has_option(target, "parent"):
+            parent = self.config.get(target, "parent")
+            assert not self.config.has_option(parent, "parent")
+            assert self.config.get(parent, "repository") == env_vars["GIT_REPO"]
+            env_vars["PARENT_TARGET"] = parent
+            env_vars["PARENT_DOCKERFILE"] = self.config.get(parent, "dockerfile")
+            env_vars["PARENT_BUILD_ARGS"] = self.config.get(parent, "build_args", fallback="")
 
         # metadata
         job_annotations['cp2kci/target'] = target

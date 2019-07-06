@@ -36,7 +36,7 @@ def main():
 
     # check config tags
     for target in config.sections():
-        tags = config.get(target, "tags").split()
+        tags = config.get(target, "tags", fallback="").split()
         assert all([t in KNOWN_TAGS for t in tags])
 
     # subscribe to pubsub
@@ -93,7 +93,7 @@ def process_rpc(rpc, **args):
     elif rpc == 'submit_all_dashboard_tests':
         head_sha = GithubUtil("cp2k").get_master_head_sha()
         for target in config.sections():
-            tags = config.get(target, "tags").split()
+            tags = config.get(target, "tags", fallback="").split()
             if "dashboard" in tags:
                 submit_dashboard_test(target, head_sha)
 
@@ -243,7 +243,7 @@ def process_pull_request(gh, pr_number, sender):
 
     # submit / create check_runs
     for target in config.sections():
-        tags = config.get(target, "tags").split()
+        tags = config.get(target, "tags", fallback="").split()
         if "required_check_run" in tags:
             submit_check_run(target, gh, pr, sender)
         if "optional_check_run" in tags:
