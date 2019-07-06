@@ -15,8 +15,12 @@ The typical use case consists of the following steps:
 
 ## Configuration
 
-The CP2K-CI is configured via the [cp2k-ci.conf](./backend/cp2k-ci.conf) file. The file has the format of the python [configparser](https://docs.python.org/3/library/configparser.html). Each section is refereed to as a _target_. A typical section looks like this:
+The CP2K-CI is configured via the [cp2k-ci.conf](./backend/cp2k-ci.conf) file. The file has the format of the python [configparser](https://docs.python.org/3/library/configparser.html). Each section is refereed to as a _target_. Typical sections looks like this:
 ```
+[cp2k-toolchain-mpich]
+repository:   cp2k
+dockerfile:   /tools/toolchain/Dockerfile
+
 [cp2k-sdbg]
 display_name: Regtest sdbg
 repository:   cp2k
@@ -24,7 +28,8 @@ cpu:          32
 nodepools:    pool-highcpu-32-haswell
 tags:         required_check_run dashboard
 related_path: Makefile|src|tests|exts|tools/(build_utils|regtesting|toolchain|docker)
-toolchain:    mpich
+parent:       cp2k-toolchain-mpich
+build_args:   TOOLCHAIN=__PARENT_IMAGE__
 dockerfile:   /tools/docker/Dockerfile.test_sdbg
 ```
 
@@ -37,6 +42,7 @@ The fields have the following meaning. All lists are white-space separated.
 | display_name | Visible name of check run.                                                                   |
 | repository   | Name of repository below https://github.com/cp2k/ .                                          |
 | cpu          | Number of CPUs to allocate for building and running.                                         |
+| gpu          | Number of GPUs to allocate for building and running.                                         |
 | nodepools    | List of eligible nodepools, [see also](setup/create_node_pools.sh).                          |
 | tags         | Tags which determine when and how this target is build and run.                              |
 | related_path | Regular expression matching relevant files.                                                  |
