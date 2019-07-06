@@ -2,7 +2,13 @@
 
 # author: Ole Schuett
 
-/usr/bin/dockerd -H unix:// &> /var/log/dockerd.log &
+# The nvidia libraries depend on the driver and are mounted at runtime.
+# Since dockerd ignores $LD_LIBRARY_PATH for some reason, we'll run ldconfig now.
+echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf
+echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
+ldconfig
+
+/usr/bin/dockerd --default-runtime=nvidia -H unix:// &> /var/log/dockerd.log &
 sleep 1  # wait a bit for docker deamon
 
 if ! docker version ; then

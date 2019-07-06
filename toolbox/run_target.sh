@@ -51,8 +51,8 @@ function docker_pull_or_build {
     local build_context="."$(dirname "${this_dockerfile}")
     local git_tree_sha=$(git ls-tree -d  HEAD "${build_context}" | awk '{print $3}')
     local build_args_hash=$(echo "${build_args_flags[@]}" | md5sum | awk '{print $1}')
-    local cpuid_hash=$(echo "${CPUID}" | md5sum | awk '{print $1}')
-    local image_name="gcr.io/${PROJECT}/img_${this_target}-cpuid-${cpuid_hash::3}"
+    local arch_hash=$(echo "${CPUID} ${GPUID}" | md5sum | awk '{print $1}')
+    local image_name="gcr.io/${PROJECT}/img_${this_target}-arch-${arch_hash::3}"
     local image_tag="gittree-${git_tree_sha::7}-buildargs-${build_args_hash::7}"
     local image_ref="${image_name}:${image_tag}"
     local cache_ref="${image_name}:${GIT_BRANCH//\//-}"
@@ -90,9 +90,14 @@ function docker_pull_or_build {
 
 # Write report header
 REPORT=/tmp/report.txt
-CPUID=$(cpuid -1 | grep "(synth)" | cut -c14-)
 START_DATE=$(date --utc --rfc-3339=seconds)
-echo -e "StartDate: ${START_DATE}\\nCpuId: ${CPUID}" | tee -a "${REPORT}"
+echo "StartDate: ${START_DATE}" | tee -a "${REPORT}"
+CPUID=$(cpuid -1 | grep "(synth)" | cut -c14-)
+echo "CpuId: ${CPUID}" | tee -a "${REPORT}"
+if which nvidia-smi &>/dev/null ; then
+    GPUID=$(nvidia-smi --query-gpu=gpu_name --format=csv | tail -n 1)
+    echo "GpuId: ${GPUID}" | tee -a "${REPORT}"
+fi
 
 # Upload preliminary report every 30s in the background.
 (

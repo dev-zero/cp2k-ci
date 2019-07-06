@@ -45,8 +45,10 @@ class KubernetesUtil:
     # --------------------------------------------------------------------------
     def resources(self, target):
         cpu = self.config.getint(target, "cpu")
+        gpu = self.config.getint(target, "gpu", fallback=0)
         req_cpu = 0.97 * cpu   # Request 3% less to leave some for kubernetes.
-        return self.api.V1ResourceRequirements(requests={"cpu": req_cpu})
+        return self.api.V1ResourceRequirements(requests={"cpu": req_cpu},
+                                               limits={"nvidia.com/gpu": gpu})
 
     # --------------------------------------------------------------------------
     def affinity(self, target):

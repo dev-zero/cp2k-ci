@@ -6,10 +6,11 @@ USER root
 WORKDIR /tmp
 
 # install ubuntu packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     ca-certificates \
     wget \
     less \
+    nano \
     git \
     gpg-agent \
     apt-transport-https \
@@ -34,8 +35,8 @@ RUN wget -q https://www.cp2k.org/static/downloads/cpuid-20180519.x86_64.tar.gz &
 # install docker
 RUN wget -qO- docker.gpg https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
-    apt-get update && \
-    apt-get install -y docker-ce && \
+    apt-get update  -qq && \
+    apt-get install -qq docker-ce && \
     rm -rf /var/lib/apt/lists/*
 
 # install cuda base libraries
@@ -44,10 +45,10 @@ RUN wget -qO- docker.gpg https://download.docker.com/linux/ubuntu/gpg | apt-key 
 RUN wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub | apt-key add - && \
     echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
     echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends cuda-cudart-10.1 cuda-compat-10-1 && \
-    ln -s cuda-10.1 /usr/local/cuda && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get update -qq && \
+    apt-get install -qq --no-install-recommends cuda-cudart-10.1 cuda-compat-10-1 && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -s cuda-10.1 /usr/local/cuda
 
 ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
@@ -59,15 +60,15 @@ ENV NVIDIA_REQUIRE_CUDA "cuda>=10.1 brand=tesla,driver>=384,driver<385 brand=tes
 # https://github.com/NVIDIA/nvidia-docker
 RUN wget -qO- https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add - && \
     wget -qO- https://nvidia.github.io/nvidia-docker/ubuntu$(lsb_release -rs)/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list && \
-    apt-get update && \
-    apt-get install -y nvidia-docker2 && \
+    apt-get update -qq && \
+    apt-get install -qq nvidia-docker2 && \
     rm -rf /var/lib/apt/lists/*
 
 # install gcloud
 RUN wget -qO- https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
     add-apt-repository "deb http://packages.cloud.google.com/apt cloud-sdk-$(lsb_release -cs) main"  && \
-    apt-get update && \
-    apt-get install -y google-cloud-sdk && \
+    apt-get update -qq && \
+    apt-get install -qq google-cloud-sdk && \
     rm -rf /var/lib/apt/lists/*
 
 # clone repos
