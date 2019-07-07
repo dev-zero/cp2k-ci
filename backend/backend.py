@@ -269,9 +269,9 @@ def create_optional_check_run(target, gh, pr):
         "conclusion": "neutral",
         "output": {"title": "Trigger manually on demand.", "summary": ""},
         "actions": [{
-            "label": "Run test",
+            "label": "Start",
             "identifier": "run",
-            "description": "Trigger test manually",
+            "description": "Trigger test run.",
         }]
     }
     gh.post("/check-runs", check_run)
@@ -324,8 +324,7 @@ def cancel_check_runs(target, gh, pr, sender):
         if target != '*' and job_annotations['cp2kci/target'] != target: continue
 
         # Ok found a matching job to cancel.
-        report_blob = output_bucket.blob(job_annotations['cp2kci/report_path'])
-        summary = '[Partial Report]({})'.format(report_blob.public_url)
+        summary = '[Partial Report]({})'.format(job_annotations['cp2kci/report_url'])
         summary += '\n\nCancelled by @{}.'.format(sender)
         check_run = {
             'status': 'completed',
@@ -333,9 +332,9 @@ def cancel_check_runs(target, gh, pr, sender):
             'completed_at': gh.now(),
             'output': {'title': 'Cancelled', 'summary': summary},
             'actions': [{
-                'label': 'Run test',
+                'label': 'Restart',
                 'identifier': 'run',
-                'description': 'Restart test run'
+                'description': 'Trigger test run.',
             }]
         }
         gh.patch(job_annotations['cp2kci/check_run_url'], check_run)
@@ -389,10 +388,22 @@ def poll_pull_requests(job_list):
                     continue # It's still young - wait a bit.
 
                 print("Found forgotten check_run: {}".format(check_run['url']))
-                summary = "Something in the CI system went wrong :-("
+                title = "Something in the CI system went wrong :-("
+                summary = "Common reasons are:\n"
+                summary += " - Busy cloud: many preemptions\n"
+                summary += " - Busy CI: long queuing\n"
+                summary += " - Download problems\n"
+                match = re.search(r"\[.*report.*\](\(.*\))", check_run["output"]["summary"], re.I)
+                if match:
+                    summary += "\n\n[Partial Report]({})".format(match.group(1))
                 check_run["conclusion"] = "failure"
                 check_run["completed_at"] = gh.now()
-                check_run["output"] = {"title":summary, "summary": ""}
+                check_run["output"] = {"title": title, "summary": summary}
+                check_run["actions"] = [{
+                    "label": "Restart",
+                    "identifier": "run",
+                    "description": "Trigger test run.",
+                }]
                 gh.patch(check_run['url'], check_run)
 
             pr_is_old = gh.age(pr['created_at']) > timedelta(minutes=3)

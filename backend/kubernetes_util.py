@@ -99,6 +99,7 @@ class KubernetesUtil:
         # metadata
         job_annotations['cp2kci/target'] = target
         job_annotations['cp2kci/report_path'] = report_path
+        job_annotations['cp2kci/report_url'] = report_blob.public_url
         job_annotations['cp2kci/artifacts_path'] = artifacts_path
         job_metadata = self.api.V1ObjectMeta(name=job_name,
                                              labels={'cp2kci': 'run'},
