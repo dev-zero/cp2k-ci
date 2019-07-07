@@ -218,9 +218,8 @@ def process_pull_request(gh, pr_number, sender):
         if prev_check_runs: break
     prev_conclusions = {}
     for prev_check_run in prev_check_runs:
-        if prev_check_run['status'] == 'completed':
-            _, target = parse_external_id(prev_check_run['external_id'])
-            prev_conclusions[target] = prev_check_run['conclusion']
+        _, target = parse_external_id(prev_check_run['external_id'])
+        prev_conclusions[target] = prev_check_run['conclusion']
 
     # cancel old jobs
     cancel_check_runs(target="*", gh=gh, pr=pr, sender=sender)
