@@ -407,7 +407,7 @@ def poll_pull_requests(job_list):
                 summary += " - Busy cloud: many preemptions\n"
                 summary += " - Busy CI: long queuing\n"
                 summary += " - Download problems\n"
-                match = re.search(r"\[.*report.*\]\((.*?)\)", check_run["output"]["summary"], re.I)
+                match = re.search(r"\[.*report.*\]\((.*?)\)", str(check_run["output"]["summary"]), re.I)
                 if match:
                     summary += "\n\n[Partial Report]({})".format(match.group(1))
                 check_run["conclusion"] = "failure"
