@@ -71,8 +71,8 @@ class KubernetesUtil:
         artifacts_path = job_name + "_artifacts.tgz"
 
         # upload waiting message
-        assert not report_blob.exists()
         report_blob = self.output_bucket.blob(report_path)
+        assert not report_blob.exists()
         report_blob.cache_control = "no-cache"
         report_blob.upload_from_string("Report not yet available.")
 
