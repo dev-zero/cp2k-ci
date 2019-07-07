@@ -247,7 +247,7 @@ def process_pull_request(gh, pr_number, sender):
         if "required_check_run" in tags:
             submit_check_run(target, gh, pr, sender)
         if "optional_check_run" in tags:
-            create_optional_check_run(target, gh, pr)
+            submit_check_run(target, gh, pr, optional=True)
 
 #===================================================================================================
 def format_external_id(pr_number, target):
@@ -259,29 +259,12 @@ def parse_external_id(ext_id):
     return pr_number, target
 
 #===================================================================================================
-def create_optional_check_run(target, gh, pr):
+def submit_check_run(target, gh, pr, sender, optional=False):
     check_run = {
         "name": config.get(target, "display_name"),
         "external_id": format_external_id(pr['number'], target),
         "head_sha": pr['head']['sha'],
         "started_at": gh.now(),
-        "completed_at": gh.now(),
-        "conclusion": "neutral",
-        "output": {"title": "Trigger manually on demand.", "summary": ""},
-        "actions": [{
-            "label": "Start",
-            "identifier": "run",
-            "description": "Trigger test run.",
-        }]
-    }
-    gh.post("/check-runs", check_run)
-
-#===================================================================================================
-def submit_check_run(target, gh, pr, sender):
-    check_run = {
-        "name": config.get(target, "display_name"),
-        "external_id": format_external_id(pr['number'], target),
-        "head_sha": pr['head']['sha'],
     }
 
     # check if any related files were modified
@@ -291,15 +274,25 @@ def submit_check_run(target, gh, pr, sender):
         if not any([related_path_re.search(fn) for fn in modified_files]):
             summary = "No related files were changed - skipping."
             check_run["output"] = {"title":summary, "summary": ""}
-            check_run["started_at"] = gh.now()
             check_run["completed_at"] = gh.now()
             check_run["conclusion"] = "success"
             gh.post("/check-runs", check_run)
             return
 
-    await_mergeability(gh, pr,  check_run['name'], check_run['external_id'])
+    if optional:
+        check_run["output"] = {"title": "Trigger manually on demand.", "summary": ""}
+        check_run["completed_at"] = gh.now()
+        check_run["conclusion"] = "neutral"
+        check_run["actions"] = [{
+            "label": "Start",
+            "identifier": "run",
+            "description": "Trigger test run.",
+        }]
+        gh.post("/check-runs", check_run)
+        return
 
-    # related files were modified, let's submit job.
+    # Let's submit the job.
+    await_mergeability(gh, pr,  check_run['name'], check_run['external_id'])
     check_run = gh.post("/check-runs", check_run)
     job_annotations = {
         'cp2kci/sender': sender,
@@ -311,6 +304,7 @@ def submit_check_run(target, gh, pr, sender):
     }
     git_branch = "pull/{}/merge".format(pr['number'])
     kubeutil.submit_run(target, git_branch, pr['merge_commit_sha'], job_annotations, "high-priority")
+
 
 #===================================================================================================
 def cancel_check_runs(target, gh, pr, sender):
@@ -393,7 +387,7 @@ def poll_pull_requests(job_list):
                 summary += " - Busy cloud: many preemptions\n"
                 summary += " - Busy CI: long queuing\n"
                 summary += " - Download problems\n"
-                match = re.search(r"\[.*report.*\](\(.*\))", check_run["output"]["summary"], re.I)
+                match = re.search(r"\[.*report.*\]\((.*)\)", check_run["output"]["summary"], re.I)
                 if match:
                     summary += "\n\n[Partial Report]({})".format(match.group(1))
                 check_run["conclusion"] = "failure"
