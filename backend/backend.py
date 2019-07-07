@@ -209,10 +209,41 @@ def process_pull_request(gh, pr_number, sender):
         print("Ignoring PR for non-master branch: " + pr['base']['ref'])
         return
 
+    commits = gh.get(pr['commits_url'])
+
+    # Find previous check run conclusions, before we call cancel on them.
+    prev_check_runs = []
+    for commit in reversed(commits):
+        prev_check_runs = gh.get(commit['url'] + "/check-runs")['check_runs']
+        if prev_check_runs: break
+    prev_conclusions = {}
+    for prev_check_run in prev_check_runs:
+        if prev_check_run['status'] == 'completed':
+            _, target = parse_external_id(prev_check_run['external_id'])
+            prev_conclusions[target] = prev_check_run['conclusion']
+
     # cancel old jobs
     cancel_check_runs(target="*", gh=gh, pr=pr, sender=sender)
 
-    # check git history
+    # check for merge commits
+    if not check_git_history(gh, pr, commits):
+        print("Git history test failed - not processing PR further.")
+        return
+
+    # submit check runs
+    for target in config.sections():
+        tags = config.get(target, "tags", fallback="").split()
+        if target in prev_conclusions:
+            optional = prev_conclusions[target] in ("neutral", "cancelled")
+            submit_check_run(target, gh, pr, sender, optional=optional)
+        elif "required_check_run" in tags:
+            submit_check_run(target, gh, pr, sender, optional=False)
+        elif "optional_check_run" in tags:
+            submit_check_run(target, gh, pr, sender, optional=True)
+
+
+#===================================================================================================
+def check_git_history(gh, pr):
     check_run = {
         "name": "Git History",
         "external_id": format_external_id(pr['number'], "git-history"),
@@ -221,7 +252,6 @@ def process_pull_request(gh, pr_number, sender):
         "completed_at": gh.now(),
     }
 
-    commits = gh.get(pr['commits_url'])
     await_mergeability(gh, pr, check_run['name'], check_run['external_id'])
 
     if not pr['mergeable']:
@@ -237,17 +267,8 @@ def process_pull_request(gh, pr_number, sender):
         check_run['output'] = {"title": "Git history is fine.", "summary": ""}
 
     gh.post("/check-runs", check_run)
-    if check_run['conclusion'] == 'failure':
-        print("Git history test failed - not processing PR further.")
-        return
+    return check_run['conclusion'] == 'success'
 
-    # submit / create check_runs
-    for target in config.sections():
-        tags = config.get(target, "tags", fallback="").split()
-        if "required_check_run" in tags:
-            submit_check_run(target, gh, pr, sender)
-        if "optional_check_run" in tags:
-            submit_check_run(target, gh, pr, optional=True)
 
 #===================================================================================================
 def format_external_id(pr_number, target):
@@ -387,7 +408,7 @@ def poll_pull_requests(job_list):
                 summary += " - Busy cloud: many preemptions\n"
                 summary += " - Busy CI: long queuing\n"
                 summary += " - Download problems\n"
-                match = re.search(r"\[.*report.*\]\((.*)\)", check_run["output"]["summary"], re.I)
+                match = re.search(r"\[.*report.*\]\((.*?)\)", check_run["output"]["summary"], re.I)
                 if match:
                     summary += "\n\n[Partial Report]({})".format(match.group(1))
                 check_run["conclusion"] = "failure"
