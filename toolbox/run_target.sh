@@ -93,10 +93,12 @@ REPORT=/tmp/report.txt
 START_DATE=$(date --utc --rfc-3339=seconds)
 echo "StartDate: ${START_DATE}" | tee -a "${REPORT}"
 CPUID=$(cpuid -1 | grep "(synth)" | cut -c14-)
-echo "CpuId: ${CPUID}" | tee -a "${REPORT}"
+NUM_CPUS=$(cpuid | grep "(synth)" | wc -l)
+echo "CpuId: ${NUM_CPUS}x ${CPUID}" | tee -a "${REPORT}"
 if which nvidia-smi &>/dev/null ; then
     GPUID=$(nvidia-smi --query-gpu=gpu_name --format=csv | tail -n 1)
-    echo "GpuId: ${GPUID}" | tee -a "${REPORT}"
+    NUM_GPUS=$(nvidia-smi --format=csv,noheader | wc -l)
+    echo "GpuId: ${NUM_GPUS}x ${GPUID}" | tee -a "${REPORT}"
 fi
 
 # Upload preliminary report every 30s in the background.
