@@ -63,6 +63,7 @@ function docker_pull_or_build {
     else
         echo "image not found." >> "${REPORT}"
         echo -e "\\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
+        echo "Build-Args: ${build_args_str}" |& tee -a "${REPORT}"
         docker image pull "${cache_ref}" || docker image pull "${image_name}:master"
         if ! docker build \
                --cache-from "${cache_ref}" \
@@ -93,7 +94,7 @@ REPORT=/tmp/report.txt
 START_DATE=$(date --utc --rfc-3339=seconds)
 echo "StartDate: ${START_DATE}" | tee -a "${REPORT}"
 CPUID=$(cpuid -1 | grep "(synth)" | cut -c14-)
-NUM_CPUS=$(cpuid | grep "(synth)" | wc -l)
+NUM_CPUS=$(cpuid | grep -c "(synth)")
 echo "CpuId: ${NUM_CPUS}x ${CPUID}" | tee -a "${REPORT}"
 if which nvidia-smi &>/dev/null ; then
     GPUID=$(nvidia-smi --query-gpu=gpu_name --format=csv | tail -n 1)
