@@ -64,4 +64,21 @@ gcloud beta container node-pools create pool-highcpu-8-haswell-tesla-k80 \
        --min-nodes=0 \
        --num-nodes=0 \
        --node-taints="costly=true:NoSchedule"
+
+# There is no n1-highcpu-24 machine type.
+# Using custom type with same 0.9GB/vCPU ratio routed up to multiple of 256MiB.
+gcloud container node-pools create pool-tesla-p4-haswell-24 \
+       --cluster="${CLUSTER_NAME}" \
+       --machine-type="custom-24-22272" \
+       --accelerator="type=nvidia-tesla-p4,count=1" \
+       --min-cpu-platform="Intel Haswell" \
+       --preemptible \
+       --enable-autoupgrade \
+       --enable-autorepair \
+       --enable-autoscaling \
+       --max-nodes=1 \
+       --min-nodes=0 \
+       --num-nodes=0 \
+       --node-taints="costly=true:NoSchedule"
+
 #EOF
