@@ -63,6 +63,7 @@ function docker_pull_or_build {
     else
         echo "image not found." >> "${REPORT}"
         echo -e "\\n#################### Building Image ${this_target} ####################" | tee -a "${REPORT}"
+        echo -e "Dockerfile: ${this_dockerfile}" |& tee -a "${REPORT}"
         echo -e "Build-Args: ${build_args_str}\n" |& tee -a "${REPORT}"
         docker image pull "${cache_ref}" || docker image pull "${image_name}:master"
         if ! docker build \
