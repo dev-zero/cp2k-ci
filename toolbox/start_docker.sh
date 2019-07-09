@@ -8,6 +8,12 @@ echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf
 echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
 ldconfig
 
+# Start nvidia persistence daemon, if available.
+#https://docs.nvidia.com/deploy/driver-persistence/index.html
+if which nvidia-persistenced &> /dev/null ; then
+  nvidia-persistenced
+fi
+
 /usr/bin/dockerd --default-runtime=nvidia -H unix:// &> /var/log/dockerd.log &
 sleep 1  # wait a bit for docker deamon
 
