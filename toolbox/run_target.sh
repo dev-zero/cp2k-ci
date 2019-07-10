@@ -115,7 +115,7 @@ done
 )&
 
 # Start docker deamon.
-/opt/cp2kci-toolbox/start_docker.sh
+/opt/cp2kci-toolbox/start_stuff.sh
 PROJECT=$(gcloud config list --format 'value(core.project)')
 PROJECT=${PROJECT:-"cp2k-org-project"}
 
