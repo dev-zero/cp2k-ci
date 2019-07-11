@@ -76,7 +76,7 @@ gcloud container node-pools create pool-tesla-p4-haswell-24 \
        --enable-autoupgrade \
        --enable-autorepair \
        --enable-autoscaling \
-       --max-nodes=1 \
+       --max-nodes=2 \
        --min-nodes=0 \
        --num-nodes=0 \
        --node-taints="costly=true:NoSchedule"
