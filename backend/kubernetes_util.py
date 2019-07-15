@@ -142,7 +142,7 @@ class KubernetesUtil:
                                       volumes=[docker_volume, secret_volume],
                                       tolerations=[tolerate_costly],
                                       termination_grace_period_seconds=0,
-                                      restart_policy="Never",
+                                      restart_policy="onFailure",  # https://github.com/kubernetes/kubernetes/issues/79398
                                       dns_policy="Default",  # bypass kube-dns
                                       affinity=self.affinity(target),
                                       automount_service_account_token=False,
