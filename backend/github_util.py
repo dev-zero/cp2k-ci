@@ -3,7 +3,7 @@
 import os
 import jwt
 import requests
-from time import time
+from time import time, sleep
 from pathlib import Path
 from datetime import datetime
 
@@ -46,6 +46,7 @@ class GithubUtil:
         url = "https://api.github.com/app/installations/{}/access_tokens"
         r = requests.post(url.format(GITHUB_APP_INSTALL_ID), headers=headers)
         self.print_rate_limit(r)
+        sleep(1)  # avoid occasional 401 errors https://github.com/cp2k/cp2k-ci/issues/45
         return r.json()['token']
 
     # --------------------------------------------------------------------------
