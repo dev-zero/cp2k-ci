@@ -46,6 +46,9 @@ class GithubUtil:
         url = "https://api.github.com/app/installations/{}/access_tokens"
         r = requests.post(url.format(GITHUB_APP_INSTALL_ID), headers=headers)
         self.print_rate_limit(r)
+        if 'token' not in r.json():
+            print(r.text)
+            raise Exception("Login failed")
         token = r.json()['token']  # read before sleeping as http connection might close
         sleep(1)  # avoid occasional 401 errors https://github.com/cp2k/cp2k-ci/issues/45
         return token
