@@ -34,7 +34,7 @@ class GithubUtil:
         # Create App JWT token.
         now = int(time())
         payload = {"iat": now,
-                   "exp": now + 600,  # expiration time (10 minute maximum)
+                   "exp": now + 540,  # expiration, stay away from 10min limit
                    "iss": GITHUB_APP_ID}
         app_token = jwt.encode(payload, GITHUB_APP_KEY, algorithm="RS256")
         # Setup header for app.
