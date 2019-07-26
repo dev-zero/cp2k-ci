@@ -15,19 +15,13 @@ GITHUB_APP_INSTALL_ID = os.environ['GITHUB_APP_INSTALL_ID']
 class GithubUtil:
     def __init__(self, repo):
         self.repo = repo
-        self.token = self.get_installation_token()  # TODO make this lazy
         self.repo_url = "https://api.github.com/repos/cp2k/" + repo
+        self.token = self.get_installation_token()
 
     # --------------------------------------------------------------------------
     def get_master_head_sha(self):
         # Get sha of latest git commit.
         return self.get("/commits")[0]['sha']
-
-    # --------------------------------------------------------------------------
-    def print_rate_limit(self, response):
-        remaining = response.headers.get('X-RateLimit-Remaining', None)
-        if remaining and int(remaining) < 100:
-            print("X-RateLimit-Remaining: {}".format(remaining))
 
     # --------------------------------------------------------------------------
     def get_installation_token(self):
@@ -44,14 +38,9 @@ class GithubUtil:
         }
         # Obtain installation access token.
         url = "https://api.github.com/app/installations/{}/access_tokens"
-        r = requests.post(url.format(GITHUB_APP_INSTALL_ID), headers=headers)
-        self.print_rate_limit(r)
-        if 'token' not in r.json():
-            print(r.text)
-            raise Exception("Login failed")
-        token = r.json()['token']  # read before sleeping as http connection might close
+        r = self.http_request("POST", url.format(GITHUB_APP_INSTALL_ID), headers)
         sleep(1)  # avoid occasional 401 errors https://github.com/cp2k/cp2k-ci/issues/45
-        return token
+        return r['token']
 
     # --------------------------------------------------------------------------
     def now(self):
@@ -64,42 +53,34 @@ class GithubUtil:
         return datetime.utcnow() - creation
 
     # --------------------------------------------------------------------------
-    def get(self, url):
+    def http_request(self, method, url, headers, body=None):
         if url.startswith("/"):
             url = self.repo_url + url
-        headers = {"Authorization": "token " + self.token,
-                   "Accept": "application/vnd.github.antiope-preview+json"}
-        r = requests.get(url, headers=headers)
-        self.print_rate_limit(r)
+        r = requests.request(method=method, url=url, headers=headers, json=body)
+        remaining = r.headers.get('X-RateLimit-Remaining', None)
+        if remaining and int(remaining) < 100:
+            print("X-RateLimit-Remaining: {}".format(remaining))
         if r.status_code >= 400:
             print(r.text)
         r.raise_for_status()
         return r.json()
+
+    # --------------------------------------------------------------------------
+    def authenticated_http_request(self, method, url, body=None):
+        headers = {"Authorization": "token " + self.token,
+                   "Accept": "application/vnd.github.antiope-preview+json"}
+        return self.http_request(method, url, headers, body)
+
+    # --------------------------------------------------------------------------
+    def get(self, url):
+        return self.authenticated_http_request("GET", url)
 
     # --------------------------------------------------------------------------
     def post(self, url, body):
-        if url.startswith("/"):
-            url = self.repo_url + url
-        headers = {"Authorization": "token " + self.token,
-                   "Accept": "application/vnd.github.antiope-preview+json"}
-        r = requests.post(url, headers=headers, json=body)
-        self.print_rate_limit(r)
-        if r.status_code >= 400:
-            print(r.text)
-        r.raise_for_status()
-        return r.json()
+        return self.authenticated_http_request("POST", url, body)
 
     # --------------------------------------------------------------------------
     def patch(self, url, body):
-        if url.startswith("/"):
-            url = self.repo_url + url
-        headers = {"Authorization": "token " + self.token,
-                   "Accept": "application/vnd.github.antiope-preview+json"}
-        r = requests.patch(url, headers=headers, json=body)
-        self.print_rate_limit(r)
-        if r.status_code >= 400:
-            print(r.text)
-        r.raise_for_status()
-        return r.json()
+        return self.authenticated_http_request("PATCH", url, body)
 
 # EOF
