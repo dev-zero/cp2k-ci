@@ -328,7 +328,6 @@ def submit_check_run(target, gh, pr, sender, optional=False):
 
 #===================================================================================================
 def cancel_check_runs(target, gh, pr, sender):
-    print("Canceling target {} for pr {}.".format(target, pr['number']))
     run_job_list = kubeutil.list_jobs('cp2kci=run')
     for job in run_job_list.items:
         job_annotations = job.metadata.annotations
@@ -338,6 +337,7 @@ def cancel_check_runs(target, gh, pr, sender):
         if target != '*' and job_annotations['cp2kci/target'] != target: continue
 
         # Ok found a matching job to cancel.
+        print("Canceling job {}.".format(job.metadata.name))
         summary = '[Partial Report]({})'.format(job_annotations['cp2kci/report_url'])
         summary += '\n\nCancelled by @{}.'.format(sender)
         check_run = {
