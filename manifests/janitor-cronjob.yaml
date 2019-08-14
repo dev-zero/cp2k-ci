@@ -3,7 +3,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: cp2kci-cleanup-cronjob
+  name: cp2kci-janitor-cronjob
 spec:
   schedule: "0  10  *  *  *"
   jobTemplate:
@@ -21,9 +21,9 @@ spec:
             secret:
               secretName: "cronjob-gcp-key"
           containers:
-          - name: cp2kci-cleanup-cronjob-container
+          - name: cp2kci-janitor-cronjob-container
             image: gcr.io/cp2k-org-project/img_cp2kci_toolbox:latest
-            command: ["/opt/cp2kci-toolbox/cleanup.sh"]
+            command: ["/opt/cp2kci-toolbox/janitorial_duties.sh"]
             resources:
               requests:
                 cpu: 1m

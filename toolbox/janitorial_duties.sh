@@ -42,4 +42,6 @@ done
 
 # Cloud storage is cleaned via lifecycle management.
 
+./update_usage_stats.py
+
 #EOF
