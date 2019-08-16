@@ -39,7 +39,6 @@ class GithubUtil:
         # Obtain installation access token.
         url = "https://api.github.com/app/installations/{}/access_tokens"
         r = self.http_request("POST", url.format(GITHUB_APP_INSTALL_ID), headers)
-        sleep(1)  # avoid occasional 401 errors https://github.com/cp2k/cp2k-ci/issues/45
         return r['token']
 
     # --------------------------------------------------------------------------
@@ -73,7 +72,14 @@ class GithubUtil:
 
     # --------------------------------------------------------------------------
     def get(self, url):
-        return self.authenticated_http_request("GET", url)
+        # we get occasional 401 errors https://github.com/cp2k/cp2k-ci/issues/45
+        for i in range(5):  # retry a few times
+            try:
+                return self.authenticated_http_request("GET", url)
+            except:
+                print("Sleeping a bit before retrying...")
+                sleep(2)
+        return self.authenticated_http_request("GET", url)  # final attempt
 
     # --------------------------------------------------------------------------
     def post(self, url, body):
