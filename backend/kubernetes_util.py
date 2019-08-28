@@ -42,6 +42,12 @@ class KubernetesUtil:
         new_job = self.api.V1Job(metadata=new_job_metadata)
         self.batch_api.patch_namespaced_job(job_name, self.namespace, new_job)
 
+        # also update annotations of report_blob
+        report_blob = self.output_bucket.blob(new_annotations["cp2kci/report_path"])
+        if report_blob.exists():
+            report_blob.metadata = new_annotations
+            report_blob.patch()
+
     # --------------------------------------------------------------------------
     def resources(self, target):
         cpu = self.config.getint(target, "cpu")
@@ -76,6 +82,16 @@ class KubernetesUtil:
         report_blob.cache_control = "no-cache"
         report_blob.upload_from_string("Report not yet available.")
 
+        # amend job annotations
+        job_annotations['cp2kci/target'] = target
+        job_annotations['cp2kci/report_path'] = report_path
+        job_annotations['cp2kci/report_url'] = report_blob.public_url
+        job_annotations['cp2kci/artifacts_path'] = artifacts_path
+
+        # publish job annotations also to report blob
+        report_blob.metadata = job_annotations
+        report_blob.patch()
+
         # environment variables
         env_vars = {}
         env_vars["TARGET"] = target
@@ -97,14 +113,6 @@ class KubernetesUtil:
             env_vars["PARENT_DOCKERFILE"] = self.config.get(parent, "dockerfile")
             env_vars["PARENT_BUILD_ARGS"] = self.config.get(parent, "build_args", fallback="")
 
-        # metadata
-        job_annotations['cp2kci/target'] = target
-        job_annotations['cp2kci/report_path'] = report_path
-        job_annotations['cp2kci/report_url'] = report_blob.public_url
-        job_annotations['cp2kci/artifacts_path'] = artifacts_path
-        job_metadata = self.api.V1ObjectMeta(name=job_name,
-                                             labels={'cp2kci': 'run'},
-                                             annotations=job_annotations)
 
         # docker volume (needed for performance)
         docker_source = self.api.V1EmptyDirVolumeSource()
@@ -148,6 +156,11 @@ class KubernetesUtil:
                                       automount_service_account_token=False,
                                       priority_class_name=priority)
         pod_template = self.api.V1PodTemplateSpec(spec=pod_spec)
+
+        # metadata
+        job_metadata = self.api.V1ObjectMeta(name=job_name,
+                                             labels={'cp2kci': 'run'},
+                                             annotations=job_annotations)
 
         # job
         job_spec = self.api.V1JobSpec(template=pod_template,
