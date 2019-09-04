@@ -43,7 +43,7 @@ class KubernetesUtil:
         self.batch_api.patch_namespaced_job(job_name, self.namespace, new_job)
 
         # also update annotations of report_blob
-        report_blob = self.output_bucket.blob(new_annotations["cp2kci/report_path"])
+        report_blob = self.output_bucket.blob(new_annotations["cp2kci-report-path"])
         if report_blob.exists():
             report_blob.metadata = new_annotations
             report_blob.patch()
@@ -83,10 +83,10 @@ class KubernetesUtil:
         report_blob.upload_from_string("Report not yet available.")
 
         # amend job annotations
-        job_annotations['cp2kci/target'] = target
-        job_annotations['cp2kci/report_path'] = report_path
-        job_annotations['cp2kci/report_url'] = report_blob.public_url
-        job_annotations['cp2kci/artifacts_path'] = artifacts_path
+        job_annotations['cp2kci-target'] = target
+        job_annotations['cp2kci-report-path'] = report_path
+        job_annotations['cp2kci-report-url'] = report_blob.public_url
+        job_annotations['cp2kci-artifacts-path'] = artifacts_path
 
         # publish job annotations also to report blob
         report_blob.metadata = job_annotations
