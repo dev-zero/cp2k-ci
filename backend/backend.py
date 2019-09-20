@@ -107,7 +107,7 @@ def process_rpc(rpc, **args):
         pr_number = args['pr_number']
         target = args['target']
         gh = GithubUtil(repo)
-        pr = gh.get("/pulls/{}".format(pr_number))
+        pr = gh.get("/pulls/{}".format(pr_number)).json()
         submit_check_run(target, gh, pr, sender="_somebody_")
 
     elif rpc == 'process_pull_request':
@@ -135,7 +135,7 @@ def process_github_event(event, body):
         # snatch pr_number from existing check_runs
         repo = body["repository"]["name"]
         gh = GithubUtil(repo)
-        check_run_list = gh.get(body["check_suite"]["check_runs_url"])
+        check_run_list = gh.get(body["check_suite"]["check_runs_url"]).json()
         ext_id = check_run_list['check_runs'][0]["external_id"]
         pr_number, _ = parse_external_id(ext_id)
         sender = body["sender"]["login"]
@@ -146,7 +146,7 @@ def process_github_event(event, body):
         pr_number, target = parse_external_id(ext_id)
         repo = body["repository"]["name"]
         gh = GithubUtil(repo)
-        pr = gh.get("/pulls/{}".format(pr_number))
+        pr = gh.get("/pulls/{}".format(pr_number)).json()
         sender = body["sender"]["login"]
         submit_check_run(target, gh, pr, sender)
 
@@ -157,7 +157,7 @@ def process_github_event(event, body):
         sender = body["sender"]["login"]
         repo = body["repository"]["name"]
         gh = GithubUtil(repo)
-        pr = gh.get("/pulls/{}".format(pr_number))
+        pr = gh.get("/pulls/{}".format(pr_number)).json()
         if requested_action == "run":
             submit_check_run(target, gh, pr, sender)
         elif requested_action == "cancel":
@@ -189,7 +189,7 @@ def await_mergeability(gh, pr, check_run_name, check_run_external_id):
         print("Waiting for mergeability check of PR {}".format(pr_number))
         sleep(5)
         pr.clear()
-        pr.update(gh.get("/pulls/{}".format(pr_number)))
+        pr.update(gh.get("/pulls/{}".format(pr_number)).json())
         if pr['mergeable'] is not None:
             return
 
@@ -202,19 +202,19 @@ def await_mergeability(gh, pr, check_run_name, check_run_external_id):
 
 #===================================================================================================
 def process_pull_request(gh, pr_number, sender):
-    pr = gh.get("/pulls/{}".format(pr_number))
+    pr = gh.get("/pulls/{}".format(pr_number)).json()
 
     # check branch
     if pr['base']['ref'] != 'master':
         print("Ignoring PR for non-master branch: " + pr['base']['ref'])
         return
 
-    commits = gh.get(pr['commits_url'])
+    commits = gh.get(pr['commits_url']).json()
 
     # Find previous check run conclusions, before we call cancel on them.
     prev_check_runs = []
     for commit in reversed(commits):
-        prev_check_runs = gh.get(commit['url'] + "/check-runs")['check_runs']
+        prev_check_runs = gh.get(commit['url'] + "/check-runs").json()['check_runs']
         if prev_check_runs: break
     prev_conclusions = {}
     for prev_check_run in prev_check_runs:
@@ -290,8 +290,9 @@ def submit_check_run(target, gh, pr, sender, optional=False):
     # check if any related files were modified
     if config.has_option(target, "related_path"):
         related_path_re = re.compile(config.get(target, "related_path"))
-        modified_files = [e['filename'] for e in gh.get(pr['url'] + '/files')]
-        if not any([related_path_re.search(fn) for fn in modified_files]):
+        if not any(related_path_re.search(fn)
+                   for fn in resp.json()['filename']
+                   for resp in gh.get_iter(pr['url'] + '/files')):
             summary = "No related files were changed - skipping."
             check_run["output"] = {"title":summary, "summary": ""}
             check_run["completed_at"] = gh.now()
@@ -313,7 +314,7 @@ def submit_check_run(target, gh, pr, sender, optional=False):
 
     # Let's submit the job.
     await_mergeability(gh, pr,  check_run['name'], check_run['external_id'])
-    check_run = gh.post("/check-runs", check_run)
+    check_run = gh.post("/check-runs", check_run).json()
     job_annotations = {
         'cp2kci-sender': sender,
         'cp2kci-pull-request-number': str(pr['number']),
@@ -387,12 +388,12 @@ def poll_pull_requests(job_list):
     all_repos = set([config.get(t, "repository") for t in config.sections()])
     for repo in all_repos:
         gh = GithubUtil(repo)
-        for pr in gh.get("/pulls"):
+        for pr in gh.get("/pulls").json():
             if pr['base']['ref'] != 'master':
                 continue  # ignore non-master PR
             head_sha = pr['head']['sha']
 
-            check_run_list = gh.get("/commits/{}/check-runs".format(head_sha))
+            check_run_list = gh.get("/commits/{}/check-runs".format(head_sha)).json()
             for check_run in check_run_list['check_runs']:
                 if check_run['status'] == 'completed':
                     continue  # Good, check_run is completed.

@@ -62,7 +62,7 @@ class GithubUtil:
         if r.status_code >= 400:
             print(r.text)
         r.raise_for_status()
-        return r.json()
+        return r
 
     # --------------------------------------------------------------------------
     def authenticated_http_request(self, method, url, body=None):
@@ -80,6 +80,13 @@ class GithubUtil:
                 print("Sleeping a bit before retrying...")
                 sleep(2)
         return self.authenticated_http_request("GET", url)  # final attempt
+
+    # --------------------------------------------------------------------------
+    def get_iter(self, url):
+        while url:
+            req = self.get(url)
+            yield req
+            url = r.links.get("next")
 
     # --------------------------------------------------------------------------
     def post(self, url, body):
